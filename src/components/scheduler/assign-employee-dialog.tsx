@@ -2,7 +2,7 @@
 'use client';
 
 import type { Employee } from '@/lib/types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,7 +25,7 @@ import { format } from 'date-fns';
 interface AssignEmployeeDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  employees: Employee[];
+  employees: Employee[]; // Should be active employees
   taskName?: string;
   date?: string; // YYYY-MM-DD format
   onSubmit: (selectedEmployeeId: string) => void;
@@ -34,12 +34,28 @@ interface AssignEmployeeDialogProps {
 export function AssignEmployeeDialog({
   isOpen,
   onOpenChange,
-  employees,
+  employees, // Active employees
   taskName,
   date,
   onSubmit,
 }: AssignEmployeeDialogProps) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(employees[0]?.id);
+
+  useEffect(() => {
+    // Update selected employee if the list changes (e.g. employees become active/inactive)
+    // or if the currently selected one is no longer in the list.
+    if (isOpen) {
+        if (employees.length > 0) {
+            const currentSelectionStillValid = employees.some(emp => emp.id === selectedEmployeeId);
+            if (!selectedEmployeeId || !currentSelectionStillValid) {
+                 setSelectedEmployeeId(employees[0].id);
+            }
+        } else {
+            setSelectedEmployeeId(undefined);
+        }
+    }
+  }, [isOpen, employees, selectedEmployeeId]);
+
 
   const handleSubmit = () => {
     if (selectedEmployeeId) {
@@ -48,23 +64,10 @@ export function AssignEmployeeDialog({
   };
 
   const handleDialogClose = () => {
-    // Reset local state if needed when dialog is closed externally
-    if (employees.length > 0) {
-       setSelectedEmployeeId(employees[0].id);
-    } else {
-       setSelectedEmployeeId(undefined);
-    }
+    // No need to reset selectedEmployeeId here as useEffect will handle it if needed upon reopen.
     onOpenChange(false);
   };
   
-  // Ensure there's an employee to select by default if list is not empty
-  useState(() => {
-    if (!selectedEmployeeId && employees.length > 0) {
-      setSelectedEmployeeId(employees[0].id);
-    }
-  });
-
-
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-md">
@@ -85,17 +88,17 @@ export function AssignEmployeeDialog({
               disabled={employees.length === 0}
             >
               <SelectTrigger id="employee">
-                <SelectValue placeholder={employees.length > 0 ? "Select an employee" : "No employees available"} />
+                <SelectValue placeholder={employees.length > 0 ? "Select an active employee" : "No active employees"} />
               </SelectTrigger>
               <SelectContent>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name}
+                    {employee.firstName} {employee.lastName}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {employees.length === 0 && <p className="text-sm text-muted-foreground">No employees available to assign.</p>}
+            {employees.length === 0 && <p className="text-sm text-muted-foreground">No active employees available to assign.</p>}
           </div>
         </div>
         <DialogFooter>

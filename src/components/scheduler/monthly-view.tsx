@@ -13,7 +13,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface MonthlyViewProps {
-  employees: Employee[];
+  employees: Employee[]; // All employees
   tasks: Task[]; 
   scheduledTasks: ScheduledTask[];
   currentDate: Date; 
@@ -47,7 +47,11 @@ export function MonthlyView({
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>, date: Date) => {
     event.preventDefault();
-    setDraggedOverDate(format(date, 'yyyy-MM-dd'));
+    // Check if there are active employees before allowing drop indication
+    const hasActiveEmployees = employees.some(emp => emp.isActive);
+    if (hasActiveEmployees) {
+      setDraggedOverDate(format(date, 'yyyy-MM-dd'));
+    }
   };
 
   const handleDragLeave = () => {
@@ -58,7 +62,8 @@ export function MonthlyView({
     event.preventDefault();
     setDraggedOverDate(null);
     const taskId = event.dataTransfer.getData('text/plain');
-    if (taskId) {
+    const hasActiveEmployees = employees.some(emp => emp.isActive);
+    if (taskId && hasActiveEmployees) { // Only proceed if task and active employees exist
       onDropTaskToCell(taskId, date);
     }
   };
@@ -67,21 +72,23 @@ export function MonthlyView({
     const dayScheduledTasks = tasksForDay(date); 
     const isCurrentMonth = isSameMonth(date, currentDate);
     const dateStr = format(date, 'yyyy-MM-dd');
-    const isCellDraggedOver = draggedOverDate === dateStr;
+    const hasActiveEmployees = employees.some(emp => emp.isActive);
+    const isCellDraggedOver = draggedOverDate === dateStr && hasActiveEmployees;
+
 
     return (
       <Popover>
         <PopoverTrigger asChild>
           <div
             className={cn(
-              'h-full min-h-[7rem] border border-border p-1.5 flex flex-col cursor-pointer hover:bg-secondary/60 transition-colors duration-150',
-              isCurrentMonth ? 'bg-background' : 'bg-muted/40',
-              isCellDraggedOver ? 'bg-accent ring-2 ring-accent-foreground' : '',
+              'h-full min-h-[7rem] border border-border p-1.5 flex flex-col',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-              'relative' 
+              'relative',
+              isCurrentMonth ? 'bg-background' : 'bg-muted/40',
+              isCellDraggedOver ? 'bg-accent ring-2 ring-accent-foreground' : (isCurrentMonth ? 'hover:bg-secondary/60' : 'hover:bg-muted/60'),
+              'transition-colors duration-150'
             )}
             onClick={(e) => {
-                // Only trigger date click if the click target is the cell itself or its direct date span child
                 if (e.target === e.currentTarget || 
                     ((e.target as HTMLElement).tagName === 'SPAN' && (e.target as HTMLElement).parentElement === e.currentTarget)) {
                     onDateClick(date);
@@ -119,7 +126,7 @@ export function MonthlyView({
                         key={st.id}
                         task={taskDetail}
                         scheduledTaskId={st.id}
-                        employeeName={employeeDetail?.name}
+                        employeeName={employeeDetail ? `${employeeDetail.firstName} ${employeeDetail.lastName}` : undefined}
                         onClick={(id, event) => { 
                            onScheduledTaskItemClick(id);
                         }}
@@ -143,11 +150,12 @@ export function MonthlyView({
                  const taskDetail = getTaskById(st.taskId);
                  const employeeDetail = getEmployeeById(st.employeeId);
                  if (!taskDetail) return null;
+                 const employeeFullName = employeeDetail ? `${employeeDetail.firstName} ${employeeDetail.lastName}` : '';
                  return (
                    <div key={st.id} className={`text-xs p-1 rounded-sm ${taskDetail.colorClasses} flex items-start gap-1.5`}>
                       {React.createElement(getTaskIcon(taskDetail.iconName), {className:"w-3 h-3 shrink-0 mt-0.5"})}
                       <span className="whitespace-normal break-words">
-                        {employeeDetail?.name ? `${employeeDetail.name}: ` : ''}{taskDetail.name}
+                        {employeeFullName ? `${employeeFullName}: ` : ''}{taskDetail.name}
                       </span>
                     </div>
                  );
@@ -161,28 +169,28 @@ export function MonthlyView({
   };
 
   return (
-    <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden">
-      <CardContent className="p-0">
+    <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden h-full flex flex-col">
+      <CardContent className="p-0 h-full flex flex-col">
         <Calendar
           mode="default" 
           month={currentDate}
-          className="w-full p-0"
+          className="w-full p-0 flex-grow" // Ensure calendar takes up space
           components={{
             Day: (props) => <DayCell date={props.date} dayProps={props} />, 
           }}
           classNames={{
             head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", 
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", 
-            row: "flex w-full mt-0 border-b last:border-b-0", 
-            table: "w-full border-collapse space-y-0",
-            months: "p-0",
-            month: "space-y-0 p-0",
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", // flex-1 and w-0 for equal width
+            row: "flex w-full mt-0 border-b last:border-b-0", // flex to allow cells to stretch height
+            table: "w-full border-collapse space-y-0 h-full flex flex-col", // Make table also flex col
+            months: "p-0 flex-grow flex flex-col", // Ensure months and month take up space
+            month: "space-y-0 p-0 flex-grow flex flex-col", // Make month flex column
             caption_label: "text-lg",
             caption: "relative flex justify-center pt-2 items-center border-b pb-2",
+            body: "flex-grow flex flex-col", // Make body flex column to distribute row height
           }}
         />
       </CardContent>
     </Card>
   );
 }
-

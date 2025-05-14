@@ -1,13 +1,14 @@
 
 'use client';
 
-import type { Employee, Task, ScheduledTask, TaskFormData, PendingTaskAssignment } from '@/lib/types';
-import { useState, useEffect } from 'react';
+import type { Employee, Task, ScheduledTask, TaskFormData, EmployeeFormData, PendingTaskAssignment } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
 import { TaskSidebar } from '@/components/scheduler/task-sidebar';
 import { WeeklyView } from '@/components/scheduler/weekly-view';
 import { MonthlyView } from '@/components/scheduler/monthly-view';
 import { HeaderControls } from '@/components/scheduler/header-controls';
 import { ManageTasksDialog } from '@/components/scheduler/manage-tasks-dialog';
+import { ManageEmployeesDialog } from '@/components/scheduler/manage-employees-dialog';
 import { ScheduledTaskDetailsDialog } from '@/components/scheduler/scheduled-task-details-dialog';
 import { AssignEmployeeDialog } from '@/components/scheduler/assign-employee-dialog';
 import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth, format } from 'date-fns';
@@ -17,9 +18,9 @@ import { cn } from '@/lib/utils';
 
 
 const initialEmployees: Employee[] = [
-  { id: 'emp1', name: 'Alice Wonderland' },
-  { id: 'emp2', name: 'Bob The Builder' },
-  { id: 'emp3', name: 'Carol Danvers' },
+  { id: 'emp1', firstName: 'Alice', lastName: 'Wonderland', warehouseCode: 'WH-A1', createdAt: new Date().toISOString(), isActive: true },
+  { id: 'emp2', firstName: 'Bob', lastName: 'The Builder', warehouseCode: 'WH-B2', createdAt: new Date().toISOString(), isActive: true },
+  { id: 'emp3', firstName: 'Carol', lastName: 'Danvers', warehouseCode: 'WH-C3', createdAt: new Date().toISOString(), isActive: false },
 ];
 
 const initialTasks: Task[] = [
@@ -39,6 +40,7 @@ export default function SchedulerPage() {
   const [currentMonthDate, setCurrentMonthDate] = useState<Date>(startOfMonth(new Date()));
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   const [selectedScheduledTask, setSelectedScheduledTask] = useState<ScheduledTask | null>(null);
@@ -49,15 +51,7 @@ export default function SchedulerPage() {
 
   const { toast } = useToast();
 
-  // No longer need this effect as dates are separate
-  // useEffect(() => {
-  //   if (currentView === 'weekly') {
-  //     setCurrentDate(currentDate => startOfWeek(currentDate, { weekStartsOn: 1 }));
-  //   } else {
-  //     setCurrentDate(currentDate => startOfMonth(currentDate));
-  //   }
-  // }, [currentView]);
-
+  const activeEmployees = useMemo(() => employees.filter(emp => emp.isActive), [employees]);
 
   const handleDragTaskStart = (event: React.DragEvent<HTMLDivElement>, taskId: string) => {
     event.dataTransfer.setData('text/plain', taskId);
@@ -76,7 +70,7 @@ export default function SchedulerPage() {
     const employee = employees.find(e => e.id === employeeId);
     toast({
       title: "Task Scheduled",
-      description: `${task?.name || 'Task'} assigned to ${employee?.name || 'Employee'} on ${format(new Date(date), 'MMM d, yyyy')}.`
+      description: `${task?.name || 'Task'} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(date), 'MMM d, yyyy')}.`
     });
   };
 
@@ -94,6 +88,33 @@ export default function SchedulerPage() {
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
     setScheduledTasks((prev) => prev.filter(st => st.taskId !== taskId));
   };
+
+  // Employee CRUD operations
+  const handleAddEmployee = (employeeData: EmployeeFormData) => {
+    const newEmployee: Employee = { 
+      ...employeeData, 
+      id: uuidv4(),
+      createdAt: new Date().toISOString(),
+    };
+    setEmployees((prev) => [...prev, newEmployee]);
+    toast({
+      title: "Employee Added",
+      description: `Employee ${newEmployee.firstName} ${newEmployee.lastName} has been added.`
+    });
+  };
+
+  const handleUpdateEmployee = (employeeId: string, employeeData: EmployeeFormData) => {
+    setEmployees((prev) => 
+      prev.map((emp) => 
+        emp.id === employeeId ? { ...emp, ...employeeData } : emp
+      )
+    );
+    toast({
+      title: "Employee Updated",
+      description: `Employee ${employeeData.firstName} ${employeeData.lastName}'s details have been updated.`
+    });
+  };
+
 
   // Navigation
   const handlePrev = () => {
@@ -171,24 +192,24 @@ export default function SchedulerPage() {
             <HeaderControls
               currentView={currentView}
               onViewChange={setCurrentView}
-              currentDate={activeDate} // Pass the date of the active view
+              currentDate={activeDate} 
               onPrev={handlePrev}
               onNext={handleNext}
               onToday={handleToday}
               onSetDate={handleSetDate}
               onManageTasks={() => setIsTaskDialogOpen(true)}
-              employees={employees}
+              onManageEmployees={() => setIsEmployeeDialogOpen(true)}
+              employees={activeEmployees} // Pass active employees for filtering
               selectedEmployeeId={selectedEmployeeId}
               onEmployeeFilterChange={setSelectedEmployeeId}
             />
-            {/* Container for the views, taking up the flexible space */}
             <div className="flex-1 overflow-hidden">
               <div className={cn('h-full w-full', currentView === 'weekly' ? 'flex' : 'hidden')}>
                 <WeeklyView
-                  employees={employees}
+                  employees={employees} // Pass all employees for display
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
-                  currentDate={currentWeekDate} // Pass weekly date
+                  currentDate={currentWeekDate} 
                   onDropTask={handleDropTask}
                   selectedEmployeeId={selectedEmployeeId}
                   onTaskClick={handleScheduledTaskClick}
@@ -196,10 +217,10 @@ export default function SchedulerPage() {
               </div>
               <div className={cn('h-full w-full', currentView === 'monthly' ? 'flex' : 'hidden')}>
                 <MonthlyView
-                  employees={employees}
+                  employees={employees} // Pass all employees for display
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
-                  currentDate={currentMonthDate} // Pass monthly date
+                  currentDate={currentMonthDate} 
                   onDateClick={handleMonthlyDateClick}
                   selectedEmployeeId={selectedEmployeeId}
                   onDropTaskToCell={handleOpenAssignEmployeeDialog}
@@ -217,6 +238,13 @@ export default function SchedulerPage() {
           onUpdateTask={handleUpdateTask}
           onDeleteTask={handleDeleteTask}
         />
+        <ManageEmployeesDialog
+          isOpen={isEmployeeDialogOpen}
+          onOpenChange={setIsEmployeeDialogOpen}
+          employees={employees}
+          onAddEmployee={handleAddEmployee}
+          onUpdateEmployee={handleUpdateEmployee}
+        />
         <ScheduledTaskDetailsDialog
           isOpen={isTaskDetailsDialogOpen}
           onOpenChange={setIsTaskDetailsDialogOpen}
@@ -227,7 +255,7 @@ export default function SchedulerPage() {
         <AssignEmployeeDialog
           isOpen={isAssignEmployeeDialogOpen}
           onOpenChange={setIsAssignEmployeeDialogOpen}
-          employees={employees}
+          employees={activeEmployees} // Pass active employees for assignment
           taskName={pendingTaskAssignmentData?.taskName}
           date={pendingTaskAssignmentData?.date}
           onSubmit={handleConfirmEmployeeAssignment}

@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 interface ScheduledTaskDetailsDialogProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export function ScheduledTaskDetailsDialog({
 
   const employee = employees.find(e => e.id === scheduledTask.employeeId);
   const task = tasks.find(t => t.id === scheduledTask.taskId);
+  const employeeFullName = employee ? `${employee.firstName} ${employee.lastName}` : 'N/A';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -67,7 +69,8 @@ export function ScheduledTaskDetailsDialog({
               Employee
             </Label>
             <div id="employeeName" className="col-span-3 text-sm p-2 bg-muted rounded-md">
-              {employee?.name || 'N/A'} (ID: {scheduledTask.employeeId})
+              {employeeFullName} {employee ? `(ID: ${employee.id.substring(0,8)})` : '(ID: N/A)'}
+              {!employee?.isActive && employee && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -85,7 +88,7 @@ export function ScheduledTaskDetailsDialog({
               Date
             </Label>
             <div id="taskDate" className="col-span-3 text-sm p-2 bg-muted rounded-md">
-              {scheduledTask.date}
+              {format(new Date(scheduledTask.date), 'MMMM d, yyyy')}
             </div>
           </div>
         </div>

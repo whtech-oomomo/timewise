@@ -10,10 +10,10 @@ import { cn } from '@/lib/utils';
 import React, { useState } from 'react';
 
 interface WeeklyViewProps {
-  employees: Employee[];
-  tasks: Task[]; // All available tasks for lookup
+  employees: Employee[]; // All employees (active and inactive for display purposes)
+  tasks: Task[]; 
   scheduledTasks: ScheduledTask[];
-  currentDate: Date; // Any date within the target week
+  currentDate: Date; 
   onDropTask: (employeeId: string, date: string, taskId: string) => void;
   selectedEmployeeId: string | null;
   onTaskClick: (scheduledTaskId: string) => void;
@@ -43,7 +43,8 @@ export function WeeklyView({
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, employeeId: string, date: Date) => {
     event.preventDefault();
     const taskId = event.dataTransfer.getData('text/plain');
-    if (taskId) {
+    const employee = employees.find(e => e.id === employeeId);
+    if (taskId && employee && employee.isActive) { // Only allow dropping on active employees
       onDropTask(employeeId, format(date, 'yyyy-MM-dd'), taskId);
     }
     setDraggedOverCell(null);
@@ -76,28 +77,34 @@ export function WeeklyView({
             {/* Employee Rows */}
             {filteredEmployees.map((employee) => (
               <React.Fragment key={employee.id}>
-                <div className="p-3 border-b border-r text-sm font-medium h-auto min-h-[80px] flex items-center justify-start sticky left-0 bg-background z-[5]">
-                  {employee.name}
+                <div className={cn(
+                  "p-3 border-b border-r text-sm font-medium h-auto min-h-[80px] flex items-center justify-start sticky left-0 bg-background z-[5]",
+                  !employee.isActive && "opacity-60 bg-muted/30"
+                )}>
+                  {employee.firstName} {employee.lastName}
+                  {!employee.isActive && <span className="ml-2 text-xs text-muted-foreground">(Inactive)</span>}
                 </div>
                 {daysInWeek.map((day) => {
                   const cellDateStr = format(day, 'yyyy-MM-dd');
                   const tasksForCell = scheduledTasks.filter(
                     (st) => st.employeeId === employee.id && st.date === cellDateStr
                   );
-                  const isCellDraggedOver = draggedOverCell?.employeeId === employee.id && draggedOverCell?.date === cellDateStr;
+                  const isCellDraggedOver = draggedOverCell?.employeeId === employee.id && draggedOverCell?.date === cellDateStr && employee.isActive;
 
                   return (
                     <div
                       key={day.toISOString()}
                       className={cn(
                         "p-2 border-b min-h-[80px] transition-colors duration-150",
-                        isCellDraggedOver ? "bg-accent" : "bg-background hover:bg-secondary/50",
-                        isToday(day) ? "bg-primary/5" : ""
+                        isCellDraggedOver ? "bg-accent" : "bg-background",
+                        employee.isActive && "hover:bg-secondary/50",
+                        !employee.isActive && "bg-muted/20",
+                        isToday(day) ? (employee.isActive ? "bg-primary/5" : "bg-primary/10") : ""
                       )}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, employee.id, day)}
-                      onDragEnter={() => setDraggedOverCell({ employeeId: employee.id, date: cellDateStr })}
-                      onDragLeave={() => setDraggedOverCell(null)}
+                      onDragOver={employee.isActive ? handleDragOver : undefined}
+                      onDrop={employee.isActive ? (e) => handleDrop(e, employee.id, day) : undefined}
+                      onDragEnter={employee.isActive ? () => setDraggedOverCell({ employeeId: employee.id, date: cellDateStr }) : undefined}
+                      onDragLeave={employee.isActive ? () => setDraggedOverCell(null) : undefined}
                     >
                       <div className="space-y-1">
                         {tasksForCell.map((st) => {
@@ -106,8 +113,8 @@ export function WeeklyView({
                             <ScheduledTaskDisplayItem
                               key={st.id}
                               task={taskDetail}
-                              scheduledTaskId={st.id} // Pass scheduled task ID
-                              onClick={onTaskClick}   // Pass click handler
+                              scheduledTaskId={st.id} 
+                              onClick={onTaskClick}   
                             />
                           ) : null;
                         })}
@@ -117,10 +124,15 @@ export function WeeklyView({
                 })}
               </React.Fragment>
             ))}
-             {filteredEmployees.length === 0 && (
+             {filteredEmployees.length === 0 && selectedEmployeeId && (
               <div className="col-span-8 p-6 text-center text-muted-foreground">
-                No employees match the current filter.
+                Selected employee not found or no employees match the current filter.
               </div>
+            )}
+             {employees.length === 0 && !selectedEmployeeId && (
+                <div className="col-span-8 p-6 text-center text-muted-foreground">
+                    No employees have been added yet. Click "Manage Employees" to add them.
+                </div>
             )}
           </div>
         </CardContent>

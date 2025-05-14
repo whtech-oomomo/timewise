@@ -3,7 +3,11 @@ import type { LucideIcon } from 'lucide-react';
 
 export interface Employee {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  warehouseCode: string;
+  createdAt: string; // ISO date string
+  isActive: boolean;
 }
 
 export interface Task {
@@ -27,6 +31,15 @@ export interface TaskFormData {
   iconName: string;
   colorClasses: string;
 }
+
+// For employee management form
+export interface EmployeeFormData {
+  firstName: string;
+  lastName: string;
+  warehouseCode: string;
+  isActive: boolean;
+}
+
 
 // For pending task assignment when dropping on monthly view
 export interface PendingTaskAssignment {

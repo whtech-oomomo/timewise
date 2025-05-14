@@ -7,9 +7,9 @@ import type React from 'react';
 interface ScheduledTaskDisplayItemProps {
   task: Task;
   isCompact?: boolean;
-  scheduledTaskId: string; // ID of the ScheduledTask instance
-  onClick?: (scheduledTaskId: string, event: React.MouseEvent<HTMLDivElement>) => void; // Updated signature
-  employeeName?: string; // New prop
+  scheduledTaskId: string; 
+  onClick?: (scheduledTaskId: string, event: React.MouseEvent<HTMLDivElement>) => void; 
+  employeeName?: string; 
 }
 
 export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTaskId, onClick, employeeName }: ScheduledTaskDisplayItemProps) {
@@ -23,11 +23,13 @@ export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTas
   };
 
   const displayTitle = employeeName ? `${employeeName} - ${task.name}` : task.name;
+  const displayText = employeeName ? `${employeeName}: ${task.name}` : task.name;
+
 
   return (
     <div
       className={cn(
-        'p-1 rounded-md text-xs flex items-start gap-1.5 shadow-sm', // items-start to align icon with first line of wrapped text
+        'p-1 rounded-md text-xs flex items-start gap-1.5 shadow-sm', 
         task.colorClasses,
         isCompact ? 'text-[10px] leading-tight' : '',
         onClick ? 'cursor-pointer hover:opacity-80' : 'cursor-grab'
@@ -39,13 +41,7 @@ export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTas
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(e as any); } : undefined} 
     >
       <IconComponent className={cn('h-3 w-3 shrink-0 mt-0.5', isCompact ? 'h-2.5 w-2.5' : '')} />
-      {!isCompact && <span className="whitespace-normal break-words">{displayTitle}</span>}
-      {isCompact && (
-        <span className="whitespace-normal break-words">
-          {employeeName ? `${employeeName}: ${task.name}` : task.name}
-        </span>
-      )}
+      <span className="whitespace-normal break-words">{displayText}</span>
     </div>
   );
 }
-

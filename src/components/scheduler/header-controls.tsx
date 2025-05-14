@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Employee } from '@/lib/types';
@@ -12,7 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, CalendarIcon, ListChecks, UserSearch, FilterX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarIcon, ListChecks, UserSearch, FilterX, UsersRound } from 'lucide-react';
 
 interface HeaderControlsProps {
   currentView: 'weekly' | 'monthly';
@@ -23,11 +24,10 @@ interface HeaderControlsProps {
   onToday: () => void;
   onSetDate: (date: Date) => void;
   onManageTasks: () => void;
-  employees: Employee[];
+  onManageEmployees: () => void; // New prop
+  employees: Employee[]; // Should be active employees for filtering
   selectedEmployeeId: string | null;
   onEmployeeFilterChange: (employeeId: string | null) => void;
-  // selectedDateFilter: Date | null; // Simplified for now, using calendar to navigate
-  // onDateFilterChange: (date: Date | null) => void;
 }
 
 export function HeaderControls({
@@ -39,7 +39,8 @@ export function HeaderControls({
   onToday,
   onSetDate,
   onManageTasks,
-  employees,
+  onManageEmployees, // New prop
+  employees, // Active employees
   selectedEmployeeId,
   onEmployeeFilterChange,
 }: HeaderControlsProps) {
@@ -85,16 +86,17 @@ export function HeaderControls({
         <Select
           value={selectedEmployeeId || 'all'}
           onValueChange={(value) => onEmployeeFilterChange(value === 'all' ? null : value)}
+          disabled={employees.length === 0 && !selectedEmployeeId}
         >
           <SelectTrigger className="w-[180px]">
             <UserSearch className="mr-2 h-4 w-4"/>
-            <SelectValue placeholder="Filter by Employee" />
+            <SelectValue placeholder={employees.length > 0 ? "Filter by Employee" : "No active employees"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Employees</SelectItem>
             {employees.map((emp) => (
               <SelectItem key={emp.id} value={emp.id}>
-                {emp.name}
+                {emp.firstName} {emp.lastName}
               </SelectItem>
             ))}
           </SelectContent>
@@ -121,6 +123,9 @@ export function HeaderControls({
         </Button>
         <Button variant="outline" onClick={onManageTasks}>
           <ListChecks className="mr-2 h-4 w-4" /> Manage Tasks
+        </Button>
+        <Button variant="outline" onClick={onManageEmployees}> {/* New Button */}
+          <UsersRound className="mr-2 h-4 w-4" /> Manage Employees
         </Button>
       </div>
     </div>
