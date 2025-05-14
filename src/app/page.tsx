@@ -59,7 +59,7 @@ export default function SchedulerPage() {
 
   const handleDropTask = (employeeId: string, date: string, taskId: string) => {
     const newScheduledTask: ScheduledTask = {
-      id: uuidv4(), // Scheduled task ID is still auto-generated
+      id: uuidv4(), 
       employeeId,
       taskId,
       date,
@@ -91,7 +91,6 @@ export default function SchedulerPage() {
 
   // Employee CRUD operations
   const handleAddEmployee = (employeeData: EmployeeFormData) => {
-    // ID uniqueness check is handled in ManageEmployeesDialog, but good to have a safeguard
     if (employees.some(emp => emp.id === employeeData.id)) {
       toast({
         title: "Error Adding Employee",
@@ -105,16 +104,32 @@ export default function SchedulerPage() {
       createdAt: new Date().toISOString(),
     };
     setEmployees((prev) => [...prev, newEmployee]);
-    // Toast is handled in dialog
   };
 
   const handleUpdateEmployee = (employeeId: string, employeeData: EmployeeFormData) => {
     setEmployees((prev) => 
       prev.map((emp) => 
-        emp.id === employeeId ? { ...emp, ...employeeData, id: employeeId } : emp // Ensure ID remains unchanged
+        emp.id === employeeId ? { ...emp, ...employeeData, id: employeeId } : emp 
       )
     );
-     // Toast is handled in dialog
+  };
+
+  const handleDeleteEmployee = (employeeIdToDelete: string) => {
+    const employee = employees.find(emp => emp.id === employeeIdToDelete);
+    if (!employee) return;
+
+    setEmployees((prev) => prev.filter((emp) => emp.id !== employeeIdToDelete));
+    setScheduledTasks((prev) => prev.filter((st) => st.employeeId !== employeeIdToDelete));
+    
+    if (selectedEmployeeId === employeeIdToDelete) {
+      setSelectedEmployeeId(null); // Reset filter if deleted employee was selected
+    }
+
+    toast({
+      title: "Employee Deleted",
+      description: `Employee "${employee.firstName} ${employee.lastName}" and their scheduled tasks have been deleted.`,
+      variant: "destructive"
+    });
   };
 
 
@@ -201,14 +216,14 @@ export default function SchedulerPage() {
               onSetDate={handleSetDate}
               onManageTasks={() => setIsTaskDialogOpen(true)}
               onManageEmployees={() => setIsEmployeeDialogOpen(true)}
-              employees={activeEmployees} // Pass active employees for filtering
+              employees={activeEmployees} 
               selectedEmployeeId={selectedEmployeeId}
               onEmployeeFilterChange={setSelectedEmployeeId}
             />
             <div className="flex-1 overflow-hidden h-full">
               <div className={cn('h-full w-full', currentView === 'weekly' ? 'flex' : 'hidden')}>
                 <WeeklyView
-                  employees={employees} // Pass all employees for display
+                  employees={employees} 
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
                   currentDate={currentWeekDate} 
@@ -219,7 +234,7 @@ export default function SchedulerPage() {
               </div>
               <div className={cn('h-full w-full', currentView === 'monthly' ? 'flex' : 'hidden')}>
                 <MonthlyView
-                  employees={employees} // Pass all employees for display
+                  employees={employees} 
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
                   currentDate={currentMonthDate} 
@@ -246,6 +261,7 @@ export default function SchedulerPage() {
           employees={employees}
           onAddEmployee={handleAddEmployee}
           onUpdateEmployee={handleUpdateEmployee}
+          onDeleteEmployee={handleDeleteEmployee} // Pass delete handler
         />
         <ScheduledTaskDetailsDialog
           isOpen={isTaskDetailsDialogOpen}
@@ -257,7 +273,7 @@ export default function SchedulerPage() {
         <AssignEmployeeDialog
           isOpen={isAssignEmployeeDialogOpen}
           onOpenChange={setIsAssignEmployeeDialogOpen}
-          employees={activeEmployees} // Pass active employees for assignment
+          employees={activeEmployees} 
           taskName={pendingTaskAssignmentData?.taskName}
           date={pendingTaskAssignmentData?.date}
           onSubmit={handleConfirmEmployeeAssignment}
