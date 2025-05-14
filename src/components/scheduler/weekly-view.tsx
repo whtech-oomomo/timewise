@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Employee, Task, ScheduledTask } from '@/lib/types';
@@ -15,6 +16,7 @@ interface WeeklyViewProps {
   currentDate: Date; // Any date within the target week
   onDropTask: (employeeId: string, date: string, taskId: string) => void;
   selectedEmployeeId: string | null;
+  onTaskClick: (scheduledTaskId: string) => void; // New prop for click handling
 }
 
 export function WeeklyView({
@@ -24,6 +26,7 @@ export function WeeklyView({
   currentDate,
   onDropTask,
   selectedEmployeeId,
+  onTaskClick, 
 }: WeeklyViewProps) {
   const [draggedOverCell, setDraggedOverCell] = useState<{ employeeId: string; date: string } | null>(null);
   
@@ -34,7 +37,7 @@ export function WeeklyView({
   const getTaskById = (taskId: string) => tasks.find(t => t.id === taskId);
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault(); // Necessary to allow drop
+    event.preventDefault(); 
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, employeeId: string, date: Date) => {
@@ -52,9 +55,9 @@ export function WeeklyView({
 
   return (
     <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden">
-      <ScrollArea className="h-[calc(100vh-200px)]"> {/* Adjust height as needed */}
+      <ScrollArea className="h-[calc(100vh-200px)]"> 
         <CardContent className="p-0">
-          <div className="grid grid-cols-[150px_repeat(7,1fr)]"> {/* Employee name col + 7 day cols */}
+          <div className="grid grid-cols-[150px_repeat(7,1fr)]"> 
             {/* Header Row */}
             <div className="sticky top-0 z-10 p-3 font-semibold bg-muted border-b border-r text-sm">Employee</div>
             {daysInWeek.map((day) => (
@@ -95,13 +98,17 @@ export function WeeklyView({
                       onDrop={(e) => handleDrop(e, employee.id, day)}
                       onDragEnter={() => setDraggedOverCell({ employeeId: employee.id, date: cellDateStr })}
                       onDragLeave={() => setDraggedOverCell(null)}
-
                     >
                       <div className="space-y-1">
                         {tasksForCell.map((st) => {
                           const taskDetail = getTaskById(st.taskId);
                           return taskDetail ? (
-                            <ScheduledTaskDisplayItem key={st.id} task={taskDetail} />
+                            <ScheduledTaskDisplayItem 
+                              key={st.id} 
+                              task={taskDetail} 
+                              scheduledTaskId={st.id} // Pass scheduled task ID
+                              onClick={onTaskClick}   // Pass click handler
+                            />
                           ) : null;
                         })}
                       </div>

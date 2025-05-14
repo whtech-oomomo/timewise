@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Employee, Task, ScheduledTask, TaskFormData } from '@/lib/types';
@@ -7,8 +8,7 @@ import { WeeklyView } from '@/components/scheduler/weekly-view';
 import { MonthlyView } from '@/components/scheduler/monthly-view';
 import { HeaderControls } from '@/components/scheduler/header-controls';
 import { ManageTasksDialog } from '@/components/scheduler/manage-tasks-dialog';
-import { DndProvider } from 'react-dnd'; // If using react-dnd later
-import { HTML5Backend } from 'react-dnd-html5-backend'; // If using react-dnd later
+import { ScheduledTaskDetailsDialog } from '@/components/scheduler/scheduled-task-details-dialog'; // New Dialog
 import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
@@ -32,12 +32,15 @@ export default function SchedulerPage() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([]);
   const [currentView, setCurrentView] = useState<'weekly' | 'monthly'>('weekly');
-  const [currentDate, setCurrentDate] = useState<Date>(new Date()); // Represents start of week/month
+  const [currentDate, setCurrentDate] = useState<Date>(new Date()); 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  
+  const [selectedScheduledTask, setSelectedScheduledTask] = useState<ScheduledTask | null>(null);
+  const [isTaskDetailsDialogOpen, setIsTaskDetailsDialogOpen] = useState(false);
+
   const { toast } = useToast();
 
-  // Ensure currentDate is always start of week for weekly, start of month for monthly
   useEffect(() => {
     if (currentView === 'weekly') {
       setCurrentDate(currentDate => startOfWeek(currentDate, { weekStartsOn: 1 }));
@@ -57,6 +60,7 @@ export default function SchedulerPage() {
       employeeId,
       taskId,
       date,
+      status: 'Scheduled', // Default status
     };
     setScheduledTasks((prev) => [...prev, newScheduledTask]);
     const task = tasks.find(t => t.id === taskId);
@@ -79,7 +83,6 @@ export default function SchedulerPage() {
 
   const handleDeleteTask = (taskId: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    // Also remove scheduled instances of this task
     setScheduledTasks((prev) => prev.filter(st => st.taskId !== taskId));
   };
 
@@ -110,6 +113,14 @@ export default function SchedulerPage() {
     setCurrentView('weekly');
   };
 
+  const handleScheduledTaskClick = (scheduledTaskId: string) => {
+    const taskToView = scheduledTasks.find(st => st.id === scheduledTaskId);
+    if (taskToView) {
+      setSelectedScheduledTask(taskToView);
+      setIsTaskDetailsDialogOpen(true);
+    }
+  };
+
 
   return (
       <div className="flex h-screen max-h-screen flex-col p-4 gap-4 bg-secondary/50">
@@ -138,6 +149,7 @@ export default function SchedulerPage() {
                 currentDate={currentDate}
                 onDropTask={handleDropTask}
                 selectedEmployeeId={selectedEmployeeId}
+                onTaskClick={handleScheduledTaskClick} // Pass handler
               />
             ) : (
               <MonthlyView
@@ -157,6 +169,13 @@ export default function SchedulerPage() {
           onAddTask={handleAddTask}
           onUpdateTask={handleUpdateTask}
           onDeleteTask={handleDeleteTask}
+        />
+        <ScheduledTaskDetailsDialog
+          isOpen={isTaskDetailsDialogOpen}
+          onOpenChange={setIsTaskDetailsDialogOpen}
+          scheduledTask={selectedScheduledTask}
+          employees={employees}
+          tasks={tasks}
         />
       </div>
   );

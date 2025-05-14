@@ -17,6 +17,7 @@ export interface ScheduledTask {
   employeeId: string;
   taskId: string;
   date: string; // YYYY-MM-DD format
+  status?: string; // e.g., "Scheduled", "In Progress", "Completed"
 }
 
 // For task management form
