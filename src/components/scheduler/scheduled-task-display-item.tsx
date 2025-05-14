@@ -9,17 +9,20 @@ interface ScheduledTaskDisplayItemProps {
   isCompact?: boolean;
   scheduledTaskId: string; // ID of the ScheduledTask instance
   onClick?: (scheduledTaskId: string, event: React.MouseEvent<HTMLDivElement>) => void; // Updated signature
+  employeeName?: string; // New prop
 }
 
-export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTaskId, onClick }: ScheduledTaskDisplayItemProps) {
+export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTaskId, onClick, employeeName }: ScheduledTaskDisplayItemProps) {
   const IconComponent = getTaskIcon(task.iconName);
 
-  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => { // Updated signature
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => { 
     if (onClick) {
-      event.stopPropagation(); // Prevent click from bubbling to parent elements
+      event.stopPropagation(); 
       onClick(scheduledTaskId, event);
     }
   };
+
+  const displayTitle = employeeName ? `${employeeName} - ${task.name}` : task.name;
 
   return (
     <div
@@ -29,15 +32,19 @@ export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTas
         isCompact ? 'text-[10px] leading-tight' : '',
         onClick ? 'cursor-pointer hover:opacity-80' : 'cursor-grab'
       )}
-      title={task.name}
+      title={displayTitle}
       onClick={onClick ? handleClick : undefined}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(e as any); } : undefined} // Cast needed if strict
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(e as any); } : undefined} 
     >
       <IconComponent className={cn('h-3 w-3 shrink-0', isCompact ? 'h-2.5 w-2.5' : '')} />
-      {!isCompact && <span className="truncate">{task.name}</span>}
-      {isCompact && <span className="truncate">{task.name}</span>} {/* Ensure name shows in compact for monthly view */}
+      {!isCompact && <span className="truncate">{displayTitle}</span>}
+      {isCompact && (
+        <span className="truncate">
+          {employeeName ? `${employeeName}: ${task.name}` : task.name}
+        </span>
+      )}
     </div>
   );
 }

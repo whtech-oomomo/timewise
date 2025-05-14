@@ -174,13 +174,14 @@ export default function SchedulerPage() {
               />
             ) : (
               <MonthlyView
+                employees={employees} // Pass employees here
                 tasks={tasks}
                 scheduledTasks={scheduledTasks}
                 currentDate={currentDate}
                 onDateClick={handleMonthlyDateClick}
                 selectedEmployeeId={selectedEmployeeId}
                 onDropTaskToCell={handleOpenAssignEmployeeDialog}
-                onScheduledTaskItemClick={handleScheduledTaskClick} // Pass the handler
+                onScheduledTaskItemClick={handleScheduledTaskClick} 
               />
             )}
           </div>

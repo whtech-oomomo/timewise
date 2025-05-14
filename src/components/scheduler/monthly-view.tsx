@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Task, ScheduledTask } from '@/lib/types';
+import type { Task, ScheduledTask, Employee } from '@/lib/types'; // Added Employee
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,29 +13,31 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface MonthlyViewProps {
+  employees: Employee[]; // All available employees for lookup
   tasks: Task[]; // All available tasks for lookup
   scheduledTasks: ScheduledTask[];
   currentDate: Date; // Any date within the target month
   onDateClick: (date: Date) => void; // To switch to weekly view or show details
   selectedEmployeeId: string | null;
   onDropTaskToCell: (taskId: string, date: Date) => void;
-  onScheduledTaskItemClick: (scheduledTaskId: string) => void; // New prop
+  onScheduledTaskItemClick: (scheduledTaskId: string) => void; 
 }
 
 export function MonthlyView({
+  employees,
   tasks,
   scheduledTasks,
   currentDate,
   onDateClick,
   selectedEmployeeId,
   onDropTaskToCell,
-  onScheduledTaskItemClick, // Destructure new prop
+  onScheduledTaskItemClick,
 }: MonthlyViewProps) {
   
   const getTaskById = (taskId: string): Task | undefined => tasks.find(t => t.id === taskId);
+  const getEmployeeById = (employeeId: string): Employee | undefined => employees.find(e => e.id === employeeId);
   const [draggedOverDate, setDraggedOverDate] = React.useState<string | null>(null);
 
-  // Modified to return ScheduledTask[]
   const tasksForDay = (day: Date): ScheduledTask[] => {
     const dateStr = format(day, 'yyyy-MM-dd');
     return scheduledTasks.filter(
@@ -62,7 +64,7 @@ export function MonthlyView({
   };
 
   const DayCell = ({ date, dayProps }: { date: Date; dayProps: any }) => {
-    const dayScheduledTasks = tasksForDay(date); // Now returns ScheduledTask[]
+    const dayScheduledTasks = tasksForDay(date); 
     const isCurrentMonth = isSameMonth(date, currentDate);
     const dateStr = format(date, 'yyyy-MM-dd');
     const isCellDraggedOver = draggedOverDate === dateStr;
@@ -76,9 +78,14 @@ export function MonthlyView({
               isCurrentMonth ? 'bg-background' : 'bg-muted/40',
               isCellDraggedOver ? 'bg-accent ring-2 ring-accent-foreground' : '',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-              'relative' // For PopoverTrigger
+              'relative' 
             )}
-            onClick={() => onDateClick(date)} // Main cell click navigates
+            onClick={(e) => {
+                // Only trigger onDateClick if the click target is the cell itself, not a child task item
+                if (e.target === e.currentTarget) {
+                    onDateClick(date);
+                }
+            }}
             onDragOver={(e) => handleDragOver(e, date)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, date)}
@@ -94,18 +101,19 @@ export function MonthlyView({
               {format(date, 'd')}
             </span>
             {dayScheduledTasks.length > 0 && (
-              <ScrollArea className="flex-grow max-h-[100px] pr-1">
+              <ScrollArea className="flex-grow max-h-[120px] pr-1"> {/* Increased max-h slightly */}
                 <div className="space-y-0.5"> 
                   {dayScheduledTasks.map(st => {
                     const taskDetail = getTaskById(st.taskId);
+                    const employeeDetail = getEmployeeById(st.employeeId);
                     if (!taskDetail) return null;
                     return (
                       <ScheduledTaskDisplayItem
                         key={st.id}
                         task={taskDetail}
                         scheduledTaskId={st.id}
-                        onClick={(id, event) => { // event is available from updated ScheduledTaskDisplayItem
-                           // onScheduledTaskItemClick is passed from MonthlyView -> DayCell props
+                        employeeName={employeeDetail?.name}
+                        onClick={(id, event) => { 
                            onScheduledTaskItemClick(id);
                         }}
                         isCompact={true}
@@ -118,19 +126,22 @@ export function MonthlyView({
           </div>
         </PopoverTrigger>
         {dayScheduledTasks.length > 0 && (
-          <PopoverContent className="w-60 p-0">
+          <PopoverContent className="w-64 p-0"> {/* Increased width slightly */}
             <div className="p-2 border-b">
-              <p className="text-sm font-semibold">{format(date, "MMM d, yyyy")}</p>
+              <p className="text-sm font-semibold">{format(date, "MMMM d, yyyy")}</p>
             </div>
             <ScrollArea className="max-h-60">
             <div className="p-2 space-y-1">
               {dayScheduledTasks.map(st => {
                  const taskDetail = getTaskById(st.taskId);
+                 const employeeDetail = getEmployeeById(st.employeeId);
                  if (!taskDetail) return null;
                  return (
                    <div key={st.id} className={`text-xs p-1 rounded-sm ${taskDetail.colorClasses} flex items-center gap-1.5`}>
                       {React.createElement(getTaskIcon(taskDetail.iconName), {className:"w-3 h-3 shrink-0"})}
-                      <span className="truncate">{taskDetail.name}</span>
+                      <span className="truncate">
+                        {employeeDetail?.name ? `${employeeDetail.name}: ` : ''}{taskDetail.name}
+                      </span>
                     </div>
                  );
               })}
@@ -146,7 +157,7 @@ export function MonthlyView({
     <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden">
       <CardContent className="p-0">
         <Calendar
-          mode="default" // react-day-picker type change, was "single" but "default" or undefined more appropriate here
+          mode="default" 
           month={currentDate}
           className="w-full p-0"
           components={{
@@ -154,7 +165,7 @@ export function MonthlyView({
           }}
           classNames={{
             head_cell: "flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b",
-            cell: "flex-1 p-0 m-0 border-r last:border-r-0 relative", // Ensure relative for positioning popover trigger properly
+            cell: "flex-1 p-0 m-0 border-r last:border-r-0 relative", 
             row: "flex w-full mt-0 border-b last:border-b-0", 
             table: "w-full border-collapse space-y-0",
             months: "p-0",
