@@ -9,10 +9,10 @@ import { MonthlyView } from '@/components/scheduler/monthly-view';
 import { HeaderControls } from '@/components/scheduler/header-controls';
 import { ManageTasksDialog } from '@/components/scheduler/manage-tasks-dialog';
 import { ScheduledTaskDetailsDialog } from '@/components/scheduler/scheduled-task-details-dialog';
-import { AssignEmployeeDialog } from '@/components/scheduler/assign-employee-dialog'; // New Dialog
+import { AssignEmployeeDialog } from '@/components/scheduler/assign-employee-dialog';
 import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth, format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
+import { v4 as uuidv4 } from 'uuid';
 
 
 const initialEmployees: Employee[] = [
@@ -64,7 +64,7 @@ export default function SchedulerPage() {
       employeeId,
       taskId,
       date,
-      status: 'Scheduled', // Default status
+      status: 'Scheduled', 
     };
     setScheduledTasks((prev) => [...prev, newScheduledTask]);
     const task = tasks.find(t => t.id === taskId);
@@ -179,7 +179,8 @@ export default function SchedulerPage() {
                 currentDate={currentDate}
                 onDateClick={handleMonthlyDateClick}
                 selectedEmployeeId={selectedEmployeeId}
-                onDropTaskToCell={handleOpenAssignEmployeeDialog} // Pass handler for drop
+                onDropTaskToCell={handleOpenAssignEmployeeDialog}
+                onScheduledTaskItemClick={handleScheduledTaskClick} // Pass the handler
               />
             )}
           </div>
