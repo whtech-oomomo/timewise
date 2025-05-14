@@ -3,7 +3,7 @@
 
 import type { Employee, EmployeeFormData } from '@/lib/types';
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button'; // Added buttonVariants
 import {
   Dialog,
   DialogContent,
