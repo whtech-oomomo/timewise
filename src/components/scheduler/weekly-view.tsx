@@ -16,7 +16,7 @@ interface WeeklyViewProps {
   currentDate: Date; // Any date within the target week
   onDropTask: (employeeId: string, date: string, taskId: string) => void;
   selectedEmployeeId: string | null;
-  onTaskClick: (scheduledTaskId: string) => void; // New prop for click handling
+  onTaskClick: (scheduledTaskId: string) => void;
 }
 
 export function WeeklyView({
@@ -26,10 +26,10 @@ export function WeeklyView({
   currentDate,
   onDropTask,
   selectedEmployeeId,
-  onTaskClick, 
+  onTaskClick,
 }: WeeklyViewProps) {
   const [draggedOverCell, setDraggedOverCell] = useState<{ employeeId: string; date: string } | null>(null);
-  
+
   const weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1; // Monday
   const weekStart = startOfWeek(currentDate, { weekStartsOn });
   const daysInWeek = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
@@ -37,7 +37,7 @@ export function WeeklyView({
   const getTaskById = (taskId: string) => tasks.find(t => t.id === taskId);
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault(); 
+    event.preventDefault();
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, employeeId: string, date: Date) => {
@@ -49,15 +49,15 @@ export function WeeklyView({
     setDraggedOverCell(null);
   };
 
-  const filteredEmployees = selectedEmployeeId 
+  const filteredEmployees = selectedEmployeeId
     ? employees.filter(emp => emp.id === selectedEmployeeId)
     : employees;
 
   return (
-    <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden">
-      <ScrollArea className="h-[calc(100vh-200px)]"> 
+    <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden h-full flex flex-col">
+      <ScrollArea className="h-full">
         <CardContent className="p-0">
-          <div className="grid grid-cols-[150px_repeat(7,1fr)]"> 
+          <div className="grid grid-cols-[150px_repeat(7,1fr)]">
             {/* Header Row */}
             <div className="sticky top-0 z-10 p-3 font-semibold bg-muted border-b border-r text-sm">Employee</div>
             {daysInWeek.map((day) => (
@@ -103,9 +103,9 @@ export function WeeklyView({
                         {tasksForCell.map((st) => {
                           const taskDetail = getTaskById(st.taskId);
                           return taskDetail ? (
-                            <ScheduledTaskDisplayItem 
-                              key={st.id} 
-                              task={taskDetail} 
+                            <ScheduledTaskDisplayItem
+                              key={st.id}
+                              task={taskDetail}
                               scheduledTaskId={st.id} // Pass scheduled task ID
                               onClick={onTaskClick}   // Pass click handler
                             />

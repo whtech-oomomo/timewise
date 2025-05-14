@@ -13,6 +13,7 @@ import { AssignEmployeeDialog } from '@/components/scheduler/assign-employee-dia
 import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth, format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { cn } from '@/lib/utils';
 
 
 const initialEmployees: Employee[] = [
@@ -33,10 +34,10 @@ export default function SchedulerPage() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([]);
   const [currentView, setCurrentView] = useState<'weekly' | 'monthly'>('weekly');
-  const [currentDate, setCurrentDate] = useState<Date>(new Date()); 
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-  
+
   const [selectedScheduledTask, setSelectedScheduledTask] = useState<ScheduledTask | null>(null);
   const [isTaskDetailsDialogOpen, setIsTaskDetailsDialogOpen] = useState(false);
 
@@ -64,7 +65,7 @@ export default function SchedulerPage() {
       employeeId,
       taskId,
       date,
-      status: 'Scheduled', 
+      status: 'Scheduled',
     };
     setScheduledTasks((prev) => [...prev, newScheduledTask]);
     const task = tasks.find(t => t.id === taskId);
@@ -107,11 +108,11 @@ export default function SchedulerPage() {
     const today = new Date();
     setCurrentDate(currentView === 'weekly' ? startOfWeek(today, { weekStartsOn: 1 }) : startOfMonth(today));
   };
-  
+
   const handleSetDate = (date: Date) => {
     setCurrentDate(currentView === 'weekly' ? startOfWeek(date, { weekStartsOn: 1 }) : startOfMonth(date));
   };
-  
+
   const handleMonthlyDateClick = (date: Date) => {
     setCurrentDate(startOfWeek(date, { weekStartsOn: 1 }));
     setCurrentView('weekly');
@@ -162,28 +163,32 @@ export default function SchedulerPage() {
               selectedEmployeeId={selectedEmployeeId}
               onEmployeeFilterChange={setSelectedEmployeeId}
             />
-            {currentView === 'weekly' ? (
-              <WeeklyView
-                employees={employees}
-                tasks={tasks}
-                scheduledTasks={scheduledTasks}
-                currentDate={currentDate}
-                onDropTask={handleDropTask}
-                selectedEmployeeId={selectedEmployeeId}
-                onTaskClick={handleScheduledTaskClick}
-              />
-            ) : (
-              <MonthlyView
-                employees={employees} // Pass employees here
-                tasks={tasks}
-                scheduledTasks={scheduledTasks}
-                currentDate={currentDate}
-                onDateClick={handleMonthlyDateClick}
-                selectedEmployeeId={selectedEmployeeId}
-                onDropTaskToCell={handleOpenAssignEmployeeDialog}
-                onScheduledTaskItemClick={handleScheduledTaskClick} 
-              />
-            )}
+            {/* Container for the views, taking up the flexible space */}
+            <div className="flex-1 overflow-hidden">
+              <div className={cn('h-full w-full', currentView === 'weekly' ? 'flex' : 'hidden')}>
+                <WeeklyView
+                  employees={employees}
+                  tasks={tasks}
+                  scheduledTasks={scheduledTasks}
+                  currentDate={currentDate}
+                  onDropTask={handleDropTask}
+                  selectedEmployeeId={selectedEmployeeId}
+                  onTaskClick={handleScheduledTaskClick}
+                />
+              </div>
+              <div className={cn('h-full w-full', currentView === 'monthly' ? 'flex' : 'hidden')}>
+                <MonthlyView
+                  employees={employees}
+                  tasks={tasks}
+                  scheduledTasks={scheduledTasks}
+                  currentDate={currentDate}
+                  onDateClick={handleMonthlyDateClick}
+                  selectedEmployeeId={selectedEmployeeId}
+                  onDropTaskToCell={handleOpenAssignEmployeeDialog}
+                  onScheduledTaskItemClick={handleScheduledTaskClick}
+                />
+              </div>
+            </div>
           </div>
         </div>
         <ManageTasksDialog
