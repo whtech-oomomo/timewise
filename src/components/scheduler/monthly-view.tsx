@@ -81,7 +81,9 @@ export function MonthlyView({
               'relative' 
             )}
             onClick={(e) => {
-                if (e.target === e.currentTarget || (e.target as HTMLElement).parentElement === e.currentTarget && (e.target as HTMLElement).tagName === 'SPAN') { // Allow clicks on date number
+                // Allow click on the cell itself or the date number span to trigger onDateClick
+                if (e.target === e.currentTarget || 
+                    ((e.target as HTMLElement).tagName === 'SPAN' && (e.target as HTMLElement).parentElement === e.currentTarget)) {
                     onDateClick(date);
                 }
             }}
@@ -91,7 +93,13 @@ export function MonthlyView({
             role="button"
             aria-label={`View tasks for ${format(date, "MMMM d, yyyy")}`}
             tabIndex={0} 
-            onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && (e.target === e.currentTarget || (e.target as HTMLElement).parentElement === e.currentTarget)) onDateClick(date); }}
+            onKeyDown={(e) => { 
+              if ((e.key === 'Enter' || e.key === ' ') && 
+                  (e.target === e.currentTarget || 
+                  ((e.target as HTMLElement).tagName === 'SPAN' && (e.target as HTMLElement).parentElement === e.currentTarget))) {
+                onDateClick(date);
+              }
+            }}
           >
             <span className={cn(
                 'text-xs font-medium self-start mb-1',
@@ -100,7 +108,7 @@ export function MonthlyView({
               {format(date, 'd')}
             </span>
             {dayScheduledTasks.length > 0 && (
-              <ScrollArea className="flex-grow pr-1"> {/* Removed max-h-[120px] */}
+              <ScrollArea className="flex-grow pr-1">
                 <div className="space-y-0.5"> 
                   {dayScheduledTasks.map(st => {
                     const taskDetail = getTaskById(st.taskId);
@@ -136,9 +144,9 @@ export function MonthlyView({
                  const employeeDetail = getEmployeeById(st.employeeId);
                  if (!taskDetail) return null;
                  return (
-                   <div key={st.id} className={`text-xs p-1 rounded-sm ${taskDetail.colorClasses} flex items-center gap-1.5`}>
-                      {React.createElement(getTaskIcon(taskDetail.iconName), {className:"w-3 h-3 shrink-0"})}
-                      <span className="truncate">
+                   <div key={st.id} className={`text-xs p-1 rounded-sm ${taskDetail.colorClasses} flex items-start gap-1.5`}>
+                      {React.createElement(getTaskIcon(taskDetail.iconName), {className:"w-3 h-3 shrink-0 mt-0.5"})}
+                      <span className="whitespace-normal break-words">
                         {employeeDetail?.name ? `${employeeDetail.name}: ` : ''}{taskDetail.name}
                       </span>
                     </div>
@@ -163,8 +171,8 @@ export function MonthlyView({
             Day: (props) => <DayCell date={props.date} dayProps={props} />, 
           }}
           classNames={{
-            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", // Added w-0 and text-center
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", // Added w-0
+            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center",
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", 
             row: "flex w-full mt-0 border-b last:border-b-0", 
             table: "w-full border-collapse space-y-0",
             months: "p-0",
@@ -177,3 +185,4 @@ export function MonthlyView({
     </Card>
   );
 }
+

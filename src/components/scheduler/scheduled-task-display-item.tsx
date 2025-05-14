@@ -27,7 +27,7 @@ export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTas
   return (
     <div
       className={cn(
-        'p-1 rounded-md text-xs flex items-center gap-1.5 shadow-sm',
+        'p-1 rounded-md text-xs flex items-start gap-1.5 shadow-sm', // items-start to align icon with first line of wrapped text
         task.colorClasses,
         isCompact ? 'text-[10px] leading-tight' : '',
         onClick ? 'cursor-pointer hover:opacity-80' : 'cursor-grab'
@@ -38,13 +38,14 @@ export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTas
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(e as any); } : undefined} 
     >
-      <IconComponent className={cn('h-3 w-3 shrink-0', isCompact ? 'h-2.5 w-2.5' : '')} />
-      {!isCompact && <span className="truncate">{displayTitle}</span>}
+      <IconComponent className={cn('h-3 w-3 shrink-0 mt-0.5', isCompact ? 'h-2.5 w-2.5' : '')} />
+      {!isCompact && <span className="whitespace-normal break-words">{displayTitle}</span>}
       {isCompact && (
-        <span className="truncate">
+        <span className="whitespace-normal break-words">
           {employeeName ? `${employeeName}: ${task.name}` : task.name}
         </span>
       )}
     </div>
   );
 }
+
