@@ -3,7 +3,7 @@
 
 import type { Employee, EmployeeFormData } from '@/lib/types';
 import React, { useState, useEffect } from 'react';
-import { Button, buttonVariants } from '@/components/ui/button'; // Added buttonVariants
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { UserPlus, UsersRound, Edit3, Trash2 } from 'lucide-react';
+import { UserPlus, UsersRound, Edit3, Trash2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -49,6 +49,7 @@ interface ManageEmployeesDialogProps {
   onAddEmployee: (employeeData: EmployeeFormData) => void;
   onUpdateEmployee: (employeeId: string, employeeData: EmployeeFormData) => void;
   onDeleteEmployee: (employeeId: string) => void;
+  onExportEmployeesCSV: () => void;
 }
 
 const defaultFormValues: EmployeeFormData = {
@@ -66,6 +67,7 @@ export function ManageEmployeesDialog({
   onAddEmployee,
   onUpdateEmployee,
   onDeleteEmployee,
+  onExportEmployeesCSV,
 }: ManageEmployeesDialogProps) {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -255,7 +257,18 @@ export function ManageEmployeesDialog({
 
             {/* Right: Employee List */}
             <div className="flex flex-col overflow-hidden h-full border-l md:pl-6 pl-0 pt-1 md:pt-0">
-              <h3 className="text-lg font-semibold mb-3 border-b pb-2">Existing Employees ({employees.length})</h3>
+              <div className="flex justify-between items-center border-b pb-2 mb-3">
+                <h3 className="text-lg font-semibold">Existing Employees ({employees.length})</h3>
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={onExportEmployeesCSV}
+                    disabled={employees.length === 0}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export List
+                </Button>
+              </div>
               <ScrollArea className="flex-grow pr-2">
                 {employees.length > 0 ? (
                   <ul className="space-y-2">

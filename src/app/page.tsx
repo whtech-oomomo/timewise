@@ -200,13 +200,11 @@ export default function SchedulerPage() {
   
   const activeDate = currentView === 'weekly' ? currentWeekDate : currentMonthDate;
 
-  const escapeCSVField = (field: string | undefined | null): string => {
+  const escapeCSVField = (field: string | number | boolean | undefined | null): string => {
     if (field === undefined || field === null) {
-      return '""'; // Represent null/undefined as empty quoted string
+      return '""'; 
     }
     const strField = String(field);
-    // If field contains comma, double quote, or newline, enclose in double quotes
-    // and escape internal double quotes by doubling them.
     if (strField.includes(',') || strField.includes('"') || strField.includes('\n') || strField.includes('\r')) {
       return `"${strField.replace(/"/g, '""')}"`;
     }
@@ -217,7 +215,6 @@ export default function SchedulerPage() {
     const headers = ["Date", "Employee ID", "Employee First Name", "Employee Last Name", "Task Name", "Task Status"];
     let csvContent = headers.map(header => escapeCSVField(header)).join(",") + "\n";
 
-    // Sort scheduled tasks by date, then by employee ID
     const sortedScheduledTasks = [...scheduledTasks].sort((a, b) => {
       const dateComparison = a.date.localeCompare(b.date);
       if (dateComparison !== 0) return dateComparison;
@@ -228,7 +225,7 @@ export default function SchedulerPage() {
       const employee = employees.find(e => e.id === st.employeeId);
       const task = tasks.find(t => t.id === st.taskId);
       const row = [
-        st.date, // Already YYYY-MM-DD
+        st.date, 
         employee?.id,
         employee?.firstName,
         employee?.lastName,
@@ -269,6 +266,55 @@ export default function SchedulerPage() {
     }
   };
 
+  const generateEmployeesCSV = () => {
+    const headers = ["Employee ID", "First Name", "Last Name", "Warehouse Code", "Status", "Created At"];
+    let csvContent = headers.map(header => escapeCSVField(header)).join(",") + "\n";
+
+    const sortedEmployees = [...employees].sort((a, b) => a.id.localeCompare(b.id));
+
+    sortedEmployees.forEach(emp => {
+      const row = [
+        emp.id,
+        emp.firstName,
+        emp.lastName,
+        emp.warehouseCode,
+        emp.isActive ? 'Active' : 'Inactive',
+        format(new Date(emp.createdAt), 'yyyy-MM-dd HH:mm:ss')
+      ].map(field => escapeCSVField(field)).join(',');
+      csvContent += row + "\n";
+    });
+    return csvContent;
+  };
+
+  const handleExportEmployeesCSV = () => {
+    if (employees.length === 0) {
+        toast({
+            title: "No Data to Export",
+            description: "There are no employees to export.",
+            variant: "default",
+        });
+        return;
+    }
+    const csvString = generateEmployeesCSV();
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      const fileName = `employees_export_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`;
+      link.setAttribute("download", fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: "Employee List Exported", description: `Successfully exported to ${fileName}.` });
+    } else {
+      toast({ title: "Export Failed", description: "Your browser doesn't support this feature.", variant: "destructive" });
+    }
+  };
+
 
   return (
       <div className="flex h-screen max-h-screen flex-col p-4 gap-4 bg-secondary/50">
@@ -289,7 +335,7 @@ export default function SchedulerPage() {
               employees={activeEmployees} 
               selectedEmployeeId={selectedEmployeeId}
               onEmployeeFilterChange={setSelectedEmployeeId}
-              onExportCSV={handleExportCSV} // Pass export handler
+              onExportCSV={handleExportCSV} 
             />
             <div className="flex-1 overflow-hidden h-full">
               <div className={cn('h-full w-full', currentView === 'weekly' ? 'flex' : 'hidden')}>
@@ -333,6 +379,7 @@ export default function SchedulerPage() {
           onAddEmployee={handleAddEmployee}
           onUpdateEmployee={handleUpdateEmployee}
           onDeleteEmployee={handleDeleteEmployee} 
+          onExportEmployeesCSV={handleExportEmployeesCSV}
         />
         <ScheduledTaskDetailsDialog
           isOpen={isTaskDetailsDialogOpen}
