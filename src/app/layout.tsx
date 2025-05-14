@@ -1,12 +1,6 @@
 import type { Metadata } from 'next';
-import { Geist_Sans as GeistSans } from 'next/font/google'; // Corrected import
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"; // Added Toaster
-
-const geistSans = GeistSans({ // Corrected variable name
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: 'TimeWise Scheduler',
@@ -20,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} antialiased`}>
+      <body className="antialiased">
         {children}
         <Toaster />
       </body>
