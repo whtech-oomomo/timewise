@@ -81,7 +81,6 @@ export function MonthlyView({
               'relative' 
             )}
             onClick={(e) => {
-                // Allow click on the cell itself or the date number span to trigger onDateClick
                 if (e.target === e.currentTarget || 
                     ((e.target as HTMLElement).tagName === 'SPAN' && (e.target as HTMLElement).parentElement === e.currentTarget)) {
                     onDateClick(date);
@@ -108,7 +107,7 @@ export function MonthlyView({
               {format(date, 'd')}
             </span>
             {dayScheduledTasks.length > 0 && (
-              <ScrollArea className="flex-grow pr-1">
+              <ScrollArea className="pr-1"> {/* Removed flex-grow */}
                 <div className="space-y-0.5"> 
                   {dayScheduledTasks.map(st => {
                     const taskDetail = getTaskById(st.taskId);
@@ -171,8 +170,8 @@ export function MonthlyView({
             Day: (props) => <DayCell date={props.date} dayProps={props} />, 
           }}
           classNames={{
-            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center",
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", 
+            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", // Added text-center
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", // w-0 flex-1 for equal width
             row: "flex w-full mt-0 border-b last:border-b-0", 
             table: "w-full border-collapse space-y-0",
             months: "p-0",
@@ -185,4 +184,3 @@ export function MonthlyView({
     </Card>
   );
 }
-
