@@ -1,6 +1,7 @@
 'use client';
 
 import type { Task, ScheduledTask } from '@/lib/types';
+import React from 'react'; // Added React import
 import { Calendar } from '@/components/ui/calendar'; // Using shadcn calendar for base
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
