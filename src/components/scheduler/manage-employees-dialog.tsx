@@ -19,11 +19,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Trash2, Edit3, UserPlus, UsersRound } from 'lucide-react';
+import { UserPlus, UsersRound, Edit3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const employeeFormSchema = z.object({
+  id: z.string().min(1, 'Employee ID is required').max(20, 'Employee ID is too long'),
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   warehouseCode: z.string().min(1, 'Warehouse code is required').max(20, 'Warehouse code is too long'),
@@ -37,6 +38,14 @@ interface ManageEmployeesDialogProps {
   onAddEmployee: (employeeData: EmployeeFormData) => void;
   onUpdateEmployee: (employeeId: string, employeeData: EmployeeFormData) => void;
 }
+
+const defaultFormValues: EmployeeFormData = {
+  id: '',
+  firstName: '',
+  lastName: '',
+  warehouseCode: '',
+  isActive: true,
+};
 
 export function ManageEmployeesDialog({
   isOpen,
@@ -56,35 +65,45 @@ export function ManageEmployeesDialog({
     formState: { errors, isDirty },
   } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeFormSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      warehouseCode: '',
-      isActive: true,
-    },
+    defaultValues: defaultFormValues,
   });
 
   useEffect(() => {
-    if (editingEmployee) {
-      setValue('firstName', editingEmployee.firstName);
-      setValue('lastName', editingEmployee.lastName);
-      setValue('warehouseCode', editingEmployee.warehouseCode);
-      setValue('isActive', editingEmployee.isActive);
-    } else {
-      reset({ firstName: '', lastName: '', warehouseCode: '', isActive: true });
+    if (isOpen) {
+      if (editingEmployee) {
+        setValue('id', editingEmployee.id);
+        setValue('firstName', editingEmployee.firstName);
+        setValue('lastName', editingEmployee.lastName);
+        setValue('warehouseCode', editingEmployee.warehouseCode);
+        setValue('isActive', editingEmployee.isActive);
+      } else {
+        reset(defaultFormValues);
+      }
     }
-  }, [editingEmployee, reset, setValue]);
+  }, [isOpen, editingEmployee, reset, setValue]);
 
   const onSubmit = (data: EmployeeFormData) => {
     if (editingEmployee) {
+      // For updates, the ID is fixed (from editingEmployee.id)
       onUpdateEmployee(editingEmployee.id, data);
       toast({ title: "Employee Updated", description: `Employee "${data.firstName} ${data.lastName}" has been updated.` });
     } else {
+      // For adding new employee, check for ID uniqueness
+      if (employees.some(emp => emp.id === data.id)) {
+        toast({
+          title: "Error Adding Employee",
+          description: `Employee ID "${data.id}" already exists. Please use a unique ID.`,
+          variant: "destructive",
+        });
+        return; // Prevent form submission
+      }
       onAddEmployee(data);
       toast({ title: "Employee Added", description: `Employee "${data.firstName} ${data.lastName}" has been added.` });
     }
     setEditingEmployee(null);
-    reset({ firstName: '', lastName: '', warehouseCode: '', isActive: true });
+    reset(defaultFormValues);
+    // Optionally close dialog on successful submit, or keep it open for more additions/edits
+    // onOpenChange(false); 
   };
 
   const handleEdit = (employee: Employee) => {
@@ -93,12 +112,23 @@ export function ManageEmployeesDialog({
   
   const handleDialogClose = () => {
     setEditingEmployee(null);
-    reset({ firstName: '', lastName: '', warehouseCode: '', isActive: true });
+    reset(defaultFormValues);
     onOpenChange(false);
   }
 
   const handleToggleActive = (employee: Employee) => {
-    onUpdateEmployee(employee.id, { ...employee, isActive: !employee.isActive });
+    const updatedEmployeeData = { ...employee, isActive: !employee.isActive };
+    // We need to pass EmployeeFormData which now includes 'id'.
+    // Since 'employee' object already has 'id', 'firstName', 'lastName', 'warehouseCode',
+    // we can directly pass the relevant parts.
+    const formData: EmployeeFormData = {
+        id: employee.id,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        warehouseCode: employee.warehouseCode,
+        isActive: !employee.isActive,
+    };
+    onUpdateEmployee(employee.id, formData);
      toast({
       title: `Employee ${employee.isActive ? "Deactivated" : "Activated"}`,
       description: `${employee.firstName} ${employee.lastName} is now ${employee.isActive ? "inactive" : "active"}.`
@@ -122,6 +152,25 @@ export function ManageEmployeesDialog({
           {/* Left: Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-1">
             <h3 className="text-lg font-semibold mb-3 border-b pb-2">{editingEmployee ? 'Edit Details' : 'Add New Employee'}</h3>
+            
+            <div>
+              <Label htmlFor="id">Employee ID</Label>
+              <Controller
+                name="id"
+                control={control}
+                render={({ field }) => (
+                  <Input 
+                    id="id" 
+                    {...field} 
+                    placeholder="e.g., EMP001" 
+                    disabled={!!editingEmployee} // ID is read-only when editing
+                  />
+                )}
+              />
+              {errors.id && <p className="text-sm text-destructive">{errors.id.message}</p>}
+              {!!editingEmployee && <p className="text-xs text-muted-foreground mt-1">Employee ID cannot be changed after creation.</p>}
+            </div>
+
             <div>
               <Label htmlFor="firstName">First Name</Label>
               <Controller
@@ -156,7 +205,7 @@ export function ManageEmployeesDialog({
                 render={({ field }) => <Switch id="isActive" checked={field.value} onCheckedChange={field.onChange} />}
               />
               <Label htmlFor="isActive" className="cursor-pointer">
-                {editingEmployee ? (control._getWatch('isActive') ? 'Active' : 'Inactive') : 'Active'}
+                Active
               </Label>
             </div>
              <DialogFooter className="pt-6">
@@ -164,7 +213,7 @@ export function ManageEmployeesDialog({
                   {editingEmployee ? <><Edit3 className="mr-2 h-4 w-4" /> Update Employee</> : <><UserPlus className="mr-2 h-4 w-4" /> Add Employee</>}
                 </Button>
                 {editingEmployee && (
-                  <Button type="button" variant="outline" onClick={() => { setEditingEmployee(null); reset({ firstName: '', lastName: '', warehouseCode: '', isActive: true }); }} className="w-full md:w-auto">
+                  <Button type="button" variant="outline" onClick={() => { setEditingEmployee(null); reset(defaultFormValues); }} className="w-full md:w-auto">
                     Cancel Edit
                   </Button>
                 )}
@@ -173,11 +222,11 @@ export function ManageEmployeesDialog({
 
           {/* Right: Employee List */}
           <div className="flex flex-col overflow-hidden h-full border-l md:pl-6 pl-0 pt-1 md:pt-0">
-            <h3 className="text-lg font-semibold mb-3 border-b pb-2">Existing Employees</h3>
+            <h3 className="text-lg font-semibold mb-3 border-b pb-2">Existing Employees ({employees.length})</h3>
             <ScrollArea className="flex-grow pr-2">
               {employees.length > 0 ? (
                 <ul className="space-y-2">
-                  {employees.map((employee) => (
+                  {employees.slice().sort((a, b) => a.id.localeCompare(b.id)).map((employee) => (
                       <li
                         key={employee.id}
                         className={cn(
@@ -186,8 +235,8 @@ export function ManageEmployeesDialog({
                         )}
                       >
                         <div>
-                          <p className="font-medium">{employee.firstName} {employee.lastName}</p>
-                          <p className="text-xs text-muted-foreground">ID: {employee.id.substring(0,8)} | WC: {employee.warehouseCode}</p>
+                          <p className="font-medium">{employee.firstName} {employee.lastName} <span className="text-xs text-muted-foreground">({employee.id})</span></p>
+                          <p className="text-xs text-muted-foreground">WC: {employee.warehouseCode} {employee.isActive ? '' : ' - Inactive'}</p>
                         </div>
                         <div className="flex items-center gap-1">
                            <Button 

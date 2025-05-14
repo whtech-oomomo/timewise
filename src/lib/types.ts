@@ -34,6 +34,7 @@ export interface TaskFormData {
 
 // For employee management form
 export interface EmployeeFormData {
+  id: string; // Added manual ID
   firstName: string;
   lastName: string;
   warehouseCode: string;

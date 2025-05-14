@@ -18,9 +18,9 @@ import { cn } from '@/lib/utils';
 
 
 const initialEmployees: Employee[] = [
-  { id: 'emp1', firstName: 'Alice', lastName: 'Wonderland', warehouseCode: 'WH-A1', createdAt: new Date().toISOString(), isActive: true },
-  { id: 'emp2', firstName: 'Bob', lastName: 'The Builder', warehouseCode: 'WH-B2', createdAt: new Date().toISOString(), isActive: true },
-  { id: 'emp3', firstName: 'Carol', lastName: 'Danvers', warehouseCode: 'WH-C3', createdAt: new Date().toISOString(), isActive: false },
+  { id: 'emp001', firstName: 'Alice', lastName: 'Wonderland', warehouseCode: 'WH-A1', createdAt: new Date().toISOString(), isActive: true },
+  { id: 'emp002', firstName: 'Bob', lastName: 'The Builder', warehouseCode: 'WH-B2', createdAt: new Date().toISOString(), isActive: true },
+  { id: 'emp003', firstName: 'Carol', lastName: 'Danvers', warehouseCode: 'WH-C3', createdAt: new Date().toISOString(), isActive: false },
 ];
 
 const initialTasks: Task[] = [
@@ -59,7 +59,7 @@ export default function SchedulerPage() {
 
   const handleDropTask = (employeeId: string, date: string, taskId: string) => {
     const newScheduledTask: ScheduledTask = {
-      id: uuidv4(),
+      id: uuidv4(), // Scheduled task ID is still auto-generated
       employeeId,
       taskId,
       date,
@@ -91,28 +91,30 @@ export default function SchedulerPage() {
 
   // Employee CRUD operations
   const handleAddEmployee = (employeeData: EmployeeFormData) => {
+    // ID uniqueness check is handled in ManageEmployeesDialog, but good to have a safeguard
+    if (employees.some(emp => emp.id === employeeData.id)) {
+      toast({
+        title: "Error Adding Employee",
+        description: `Employee ID "${employeeData.id}" already exists.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const newEmployee: Employee = { 
-      ...employeeData, 
-      id: uuidv4(),
+      ...employeeData,
       createdAt: new Date().toISOString(),
     };
     setEmployees((prev) => [...prev, newEmployee]);
-    toast({
-      title: "Employee Added",
-      description: `Employee ${newEmployee.firstName} ${newEmployee.lastName} has been added.`
-    });
+    // Toast is handled in dialog
   };
 
   const handleUpdateEmployee = (employeeId: string, employeeData: EmployeeFormData) => {
     setEmployees((prev) => 
       prev.map((emp) => 
-        emp.id === employeeId ? { ...emp, ...employeeData } : emp
+        emp.id === employeeId ? { ...emp, ...employeeData, id: employeeId } : emp // Ensure ID remains unchanged
       )
     );
-    toast({
-      title: "Employee Updated",
-      description: `Employee ${employeeData.firstName} ${employeeData.lastName}'s details have been updated.`
-    });
+     // Toast is handled in dialog
   };
 
 
@@ -203,7 +205,7 @@ export default function SchedulerPage() {
               selectedEmployeeId={selectedEmployeeId}
               onEmployeeFilterChange={setSelectedEmployeeId}
             />
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden h-full">
               <div className={cn('h-full w-full', currentView === 'weekly' ? 'flex' : 'hidden')}>
                 <WeeklyView
                   employees={employees} // Pass all employees for display
