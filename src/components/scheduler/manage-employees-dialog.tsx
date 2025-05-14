@@ -1,8 +1,8 @@
 
 'use client';
 
-import type { Employee, EmployeeFormData } from '@/lib/types';
-import React, { useState, useEffect } from 'react';
+import type { Employee, EmployeeFormData, ImportedEmployeeData } from '@/lib/types';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { UserPlus, UsersRound, Edit3, Trash2, Download } from 'lucide-react';
+import { UserPlus, UsersRound, Edit3, Trash2, Download, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -31,7 +31,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 const employeeFormSchema = z.object({
@@ -50,6 +49,7 @@ interface ManageEmployeesDialogProps {
   onUpdateEmployee: (employeeId: string, employeeData: EmployeeFormData) => void;
   onDeleteEmployee: (employeeId: string) => void;
   onExportEmployeesCSV: () => void;
+  onImportEmployees: (importedData: ImportedEmployeeData[]) => void;
 }
 
 const defaultFormValues: EmployeeFormData = {
@@ -68,11 +68,13 @@ export function ManageEmployeesDialog({
   onUpdateEmployee,
   onDeleteEmployee,
   onExportEmployeesCSV,
+  onImportEmployees,
 }: ManageEmployeesDialogProps) {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     control,
@@ -97,10 +99,12 @@ export function ManageEmployeesDialog({
         reset(defaultFormValues);
       }
     } else {
-      // Reset editing and delete states when main dialog closes
       setEditingEmployee(null);
       setEmployeeToDelete(null);
       setIsConfirmDeleteDialogOpen(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Reset file input when dialog closes
+      }
     }
   }, [isOpen, editingEmployee, reset, setValue]);
 
@@ -134,6 +138,9 @@ export function ManageEmployeesDialog({
     onOpenChange(false);
     setIsConfirmDeleteDialogOpen(false);
     setEmployeeToDelete(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   const handleToggleActive = (employee: Employee) => {
@@ -159,7 +166,6 @@ export function ManageEmployeesDialog({
   const confirmDelete = () => {
     if (employeeToDelete) {
       onDeleteEmployee(employeeToDelete.id);
-      // If the deleted employee was being edited, reset the form
       if (editingEmployee?.id === employeeToDelete.id) {
         setEditingEmployee(null);
         reset(defaultFormValues);
@@ -168,6 +174,101 @@ export function ManageEmployeesDialog({
       setEmployeeToDelete(null);
     }
   };
+
+  const parseAndProcessCSV = (csvText: string) => {
+    const lines = csvText.trim().split(/\r\n|\n/); // Handle both LF and CRLF line endings
+    if (lines.length < 2) {
+      toast({ title: "Error Importing CSV", description: "CSV file is empty or has no data rows.", variant: "destructive" });
+      return;
+    }
+  
+    const headers = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
+    const expectedHeaders = ["Employee ID", "First Name", "Last Name", "Warehouse Code", "Status", "Created At"];
+    
+    const lowerCaseExpectedHeaders = expectedHeaders.map(h => h.toLowerCase());
+    const lowerCaseActualHeaders = headers.map(h => h.toLowerCase());
+
+    if (headers.length !== expectedHeaders.length || !lowerCaseExpectedHeaders.every((eh, i) => eh === lowerCaseActualHeaders[i])) {
+       toast({ title: "Error Importing CSV", description: `Invalid CSV headers. Expected: ${expectedHeaders.join(', ')}. Got: ${headers.join(', ')}`, variant: "destructive" });
+       return;
+    }
+  
+    const employeesToImport: ImportedEmployeeData[] = [];
+  
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; 
+  
+      // Basic CSV value splitting (doesn't handle commas within quotes perfectly)
+      const values = line.split(',').map(value => value.trim().replace(/^"|"$/g, ''));
+      if (values.length !== headers.length) {
+        toast({ title: `Skipping Row ${i + 1}`, description: "Incorrect number of columns.", variant: "destructive" });
+        continue;
+      }
+  
+      const employeeFromRow: any = {};
+      lowerCaseActualHeaders.forEach((header, index) => {
+        // Use expected header names as keys for consistency
+        const expectedHeaderKey = expectedHeaders.find(eh => eh.toLowerCase() === header);
+        if (expectedHeaderKey) {
+            employeeFromRow[expectedHeaderKey] = values[index];
+        }
+      });
+  
+      const isActiveString = employeeFromRow["Status"]?.toLowerCase();
+      const isActive = isActiveString === 'active';
+      
+      if (!employeeFromRow["Employee ID"] || !employeeFromRow["First Name"] || !employeeFromRow["Last Name"] || !employeeFromRow["Warehouse Code"]) {
+          toast({ title: `Skipping Row ${i+1}`, description: `Missing required fields (ID, First Name, Last Name, Warehouse Code).`, variant: "destructive"});
+          continue;
+      }
+  
+      employeesToImport.push({
+        id: employeeFromRow["Employee ID"],
+        firstName: employeeFromRow["First Name"],
+        lastName: employeeFromRow["Last Name"],
+        warehouseCode: employeeFromRow["Warehouse Code"],
+        isActive: isActive,
+        createdAtInput: employeeFromRow["Created At"],
+      });
+    }
+  
+    if (employeesToImport.length > 0) {
+      onImportEmployees(employeesToImport);
+    } else if (lines.length > 1) { // Check if there were data rows attempted
+      toast({ title: "Import Complete", description: "No valid employee data found to import from the provided rows.", variant: "default" });
+    }
+    // Reset file input after processing
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "text/csv") {
+        toast({ title: "Invalid File Type", description: "Please upload a .csv file.", variant: "destructive"});
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (text) {
+        parseAndProcessCSV(text);
+      } else {
+        toast({ title: "Error Reading File", description: "Could not read the CSV file.", variant: "destructive"});
+      }
+    };
+    reader.onerror = () => {
+        toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive"});
+    }
+    reader.readAsText(file);
+  };
+
 
   return (
     <>
@@ -179,7 +280,7 @@ export function ManageEmployeesDialog({
               {editingEmployee ? 'Edit Employee' : 'Manage Employees'}
             </DialogTitle>
             <DialogDescription>
-              {editingEmployee ? `Update details for ${editingEmployee.firstName} ${editingEmployee.lastName}.` : 'Add new employees or update existing ones.'}
+              {editingEmployee ? `Update details for ${editingEmployee.firstName} ${editingEmployee.lastName}.` : 'Add new employees or update existing ones. You can also import/export employee lists.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -257,17 +358,35 @@ export function ManageEmployeesDialog({
 
             {/* Right: Employee List */}
             <div className="flex flex-col overflow-hidden h-full border-l md:pl-6 pl-0 pt-1 md:pt-0">
-              <div className="flex justify-between items-center border-b pb-2 mb-3">
+              <div className="flex justify-between items-center border-b pb-2 mb-3 gap-2">
                 <h3 className="text-lg font-semibold">Existing Employees ({employees.length})</h3>
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={onExportEmployeesCSV}
-                    disabled={employees.length === 0}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Export List
-                </Button>
+                <div className="flex gap-2">
+                  <input 
+                    type="file" 
+                    accept=".csv" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    style={{ display: 'none' }} 
+                    id="csv-employee-upload"
+                  />
+                  <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Import
+                  </Button>
+                  <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={onExportEmployeesCSV}
+                      disabled={employees.length === 0}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export
+                  </Button>
+                </div>
               </div>
               <ScrollArea className="flex-grow pr-2">
                 {employees.length > 0 ? (
@@ -334,3 +453,4 @@ export function ManageEmployeesDialog({
     </>
   );
 }
+

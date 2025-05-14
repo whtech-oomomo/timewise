@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import type { Employee, Task, ScheduledTask, TaskFormData, EmployeeFormData, PendingTaskAssignment } from '@/lib/types';
+import type { Employee, Task, ScheduledTask, TaskFormData, EmployeeFormData, PendingTaskAssignment, ImportedEmployeeData } from '@/lib/types';
 import { useState, useEffect, useMemo } from 'react';
 import { TaskSidebar } from '@/components/scheduler/task-sidebar';
 import { WeeklyView } from '@/components/scheduler/weekly-view';
@@ -11,7 +12,7 @@ import { ManageTasksDialog } from '@/components/scheduler/manage-tasks-dialog';
 import { ManageEmployeesDialog } from '@/components/scheduler/manage-employees-dialog';
 import { ScheduledTaskDetailsDialog } from '@/components/scheduler/scheduled-task-details-dialog';
 import { AssignEmployeeDialog } from '@/components/scheduler/assign-employee-dialog';
-import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth, format } from 'date-fns';
+import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth, format, isValid } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
@@ -91,14 +92,7 @@ export default function SchedulerPage() {
 
   // Employee CRUD operations
   const handleAddEmployee = (employeeData: EmployeeFormData) => {
-    if (employees.some(emp => emp.id === employeeData.id)) {
-      toast({
-        title: "Error Adding Employee",
-        description: `Employee ID "${employeeData.id}" already exists.`,
-        variant: "destructive",
-      });
-      return;
-    }
+    // ID uniqueness is checked in ManageEmployeesDialog before calling this for new employees
     const newEmployee: Employee = { 
       ...employeeData,
       createdAt: new Date().toISOString(),
@@ -109,7 +103,7 @@ export default function SchedulerPage() {
   const handleUpdateEmployee = (employeeId: string, employeeData: EmployeeFormData) => {
     setEmployees((prev) => 
       prev.map((emp) => 
-        emp.id === employeeId ? { ...emp, ...employeeData, id: employeeId } : emp 
+        emp.id === employeeId ? { ...emp, ...employeeData, id: employeeId } : emp // Ensure createdAt is preserved
       )
     );
   };
@@ -122,13 +116,77 @@ export default function SchedulerPage() {
     setScheduledTasks((prev) => prev.filter((st) => st.employeeId !== employeeIdToDelete));
     
     if (selectedEmployeeId === employeeIdToDelete) {
-      setSelectedEmployeeId(null); // Reset filter if deleted employee was selected
+      setSelectedEmployeeId(null); 
     }
 
     toast({
       title: "Employee Deleted",
       description: `Employee "${employee.firstName} ${employee.lastName}" and their scheduled tasks have been deleted.`,
       variant: "destructive"
+    });
+  };
+
+  const handleImportEmployees = (importedData: ImportedEmployeeData[]) => {
+    let addedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+  
+    const newEmployeesToAdd: Employee[] = [];
+  
+    importedData.forEach((empData, index) => {
+      if (!empData.id || !empData.firstName || !empData.lastName || !empData.warehouseCode) {
+        toast({
+          title: `Import Error for row ${index + 1}`,
+          description: "Missing required fields (ID, First Name, Last Name, Warehouse Code). Skipping.",
+          variant: "destructive",
+        });
+        errorCount++;
+        return;
+      }
+      
+      if (employees.some(e => e.id === empData.id)) {
+        toast({
+          title: "Skipped Duplicate",
+          description: `Employee ID "${empData.id}" (${empData.firstName} ${empData.lastName}) already exists.`,
+          variant: "default",
+        });
+        skippedCount++;
+        return;
+      }
+  
+      let createdAt = new Date().toISOString(); 
+      if (empData.createdAtInput) {
+        const parsedDate = new Date(empData.createdAtInput);
+        if (isValid(parsedDate)) {
+          createdAt = parsedDate.toISOString();
+        } else {
+           toast({
+              title: `Invalid Date for ${empData.id}`,
+              description: `Using current date for "Created At" as "${empData.createdAtInput}" is invalid.`,
+              variant: "default", // Use default or warning, not destructive for this
+          });
+        }
+      }
+  
+      const newEmployee: Employee = {
+        id: empData.id,
+        firstName: empData.firstName,
+        lastName: empData.lastName,
+        warehouseCode: empData.warehouseCode,
+        isActive: typeof empData.isActive === 'boolean' ? empData.isActive : true,
+        createdAt: createdAt,
+      };
+      newEmployeesToAdd.push(newEmployee);
+      addedCount++;
+    });
+  
+    if (newEmployeesToAdd.length > 0) {
+      setEmployees(prev => [...prev, ...newEmployeesToAdd].sort((a, b) => a.id.localeCompare(b.id)));
+    }
+  
+    toast({
+      title: "CSV Import Complete",
+      description: `${addedCount} employees imported. ${skippedCount} skipped (duplicates). ${errorCount} rows had errors.`,
     });
   };
 
@@ -279,7 +337,7 @@ export default function SchedulerPage() {
         emp.lastName,
         emp.warehouseCode,
         emp.isActive ? 'Active' : 'Inactive',
-        format(new Date(emp.createdAt), 'yyyy-MM-dd HH:mm:ss')
+        isValid(new Date(emp.createdAt)) ? format(new Date(emp.createdAt), 'yyyy-MM-dd HH:mm:ss') : ''
       ].map(field => escapeCSVField(field)).join(',');
       csvContent += row + "\n";
     });
@@ -380,6 +438,7 @@ export default function SchedulerPage() {
           onUpdateEmployee={handleUpdateEmployee}
           onDeleteEmployee={handleDeleteEmployee} 
           onExportEmployeesCSV={handleExportEmployeesCSV}
+          onImportEmployees={handleImportEmployees}
         />
         <ScheduledTaskDetailsDialog
           isOpen={isTaskDetailsDialogOpen}
@@ -399,3 +458,4 @@ export default function SchedulerPage() {
       </div>
   );
 }
+

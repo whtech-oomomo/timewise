@@ -34,11 +34,21 @@ export interface TaskFormData {
 
 // For employee management form
 export interface EmployeeFormData {
-  id: string; // Added manual ID
+  id: string; 
   firstName: string;
   lastName: string;
   warehouseCode: string;
   isActive: boolean;
+}
+
+// For data parsed from CSV before full processing
+export interface ImportedEmployeeData {
+  id: string;
+  firstName: string;
+  lastName: string;
+  warehouseCode: string;
+  isActive: boolean; // Parsed from "Status"
+  createdAtInput?: string; // Raw "Created At" string from CSV
 }
 
 
@@ -48,3 +58,4 @@ export interface PendingTaskAssignment {
   date: string; // YYYY-MM-DD format
   taskName?: string; // For display in the assignment dialog
 }
+
