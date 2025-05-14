@@ -4,13 +4,12 @@
 import type { Task, ScheduledTask } from '@/lib/types';
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent } from '@/components/ui/card'; // Removed CardHeader, CardTitle as they are not used
+import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScheduledTaskDisplayItem } from './scheduled-task-display-item';
 import { getTaskIcon } from '@/components/icons/task-icon-map';
-import { format, isSameMonth, isSameDay } from 'date-fns'; // Removed getDaysInMonth as it's not used
+import { format, isSameMonth, isSameDay } from 'date-fns';
 import { ScrollArea } from '../ui/scroll-area';
-// Removed Badge as it's no longer used for "+X more"
 
 interface MonthlyViewProps {
   tasks: Task[]; // All available tasks for lookup
@@ -48,22 +47,21 @@ export function MonthlyView({
           <div 
             className={`min-h-[6rem] border border-border p-1.5 flex flex-col cursor-pointer hover:bg-secondary/50 ${isCurrentMonth ? 'bg-background' : 'bg-muted/50'}`}
             onClick={() => onDateClick(date)}
-            role="button" // Added role for accessibility
-            tabIndex={0} // Added tabIndex for accessibility
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onDateClick(date); }} // Keyboard accessibility
+            role="button" 
+            tabIndex={0} 
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onDateClick(date); }} 
           >
             <span className={`text-xs font-medium self-start ${isSameDay(date, new Date()) ? 'text-primary font-bold' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
               {format(date, 'd')}
             </span>
             {dayTasks.length > 0 && (
-              <div className="mt-1 space-y-0.5 flex-grow"> {/* Removed overflow-y-auto and max-h-[60px] */}
-                {dayTasks.map(task => ( // Changed from slice(0,2) to map all tasks
+              <div className="mt-1 space-y-0.5 flex-grow"> 
+                {dayTasks.map(task => ( 
                   <div key={task.id} className={`text-[10px] p-0.5 rounded-sm truncate ${task.colorClasses} flex items-center gap-1`} title={task.name}>
                     {React.createElement(getTaskIcon(task.iconName), {className:"w-2.5 h-2.5 shrink-0"})}
                     <span className="truncate">{task.name}</span>
                   </div>
                 ))}
-                {/* Removed "+X more" badge */}
               </div>
             )}
           </div>
@@ -97,8 +95,8 @@ export function MonthlyView({
             Day: DayCell, 
           }}
           classNames={{
-            head_cell: "w-1/7 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b",
-            cell: "w-1/7 p-0 m-0 border-r last:border-r-0 relative", // Removed h-24, added relative
+            head_cell: "flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b", // Changed w-1/7 to flex-1
+            cell: "flex-1 p-0 m-0 border-r last:border-r-0 relative", // Changed w-1/7 to flex-1
             row: "flex w-full mt-0 border-b last:border-b-0", 
             table: "w-full border-collapse space-y-0",
             months: "p-0",
@@ -111,5 +109,3 @@ export function MonthlyView({
     </Card>
   );
 }
-
-    
