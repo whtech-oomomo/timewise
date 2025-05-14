@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Task, ScheduledTask, Employee } from '@/lib/types'; // Added Employee
+import type { Task, ScheduledTask, Employee } from '@/lib/types';
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,11 +13,11 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface MonthlyViewProps {
-  employees: Employee[]; // All available employees for lookup
-  tasks: Task[]; // All available tasks for lookup
+  employees: Employee[];
+  tasks: Task[]; 
   scheduledTasks: ScheduledTask[];
-  currentDate: Date; // Any date within the target month
-  onDateClick: (date: Date) => void; // To switch to weekly view or show details
+  currentDate: Date; 
+  onDateClick: (date: Date) => void; 
   selectedEmployeeId: string | null;
   onDropTaskToCell: (taskId: string, date: Date) => void;
   onScheduledTaskItemClick: (scheduledTaskId: string) => void; 
@@ -81,8 +81,7 @@ export function MonthlyView({
               'relative' 
             )}
             onClick={(e) => {
-                // Only trigger onDateClick if the click target is the cell itself, not a child task item
-                if (e.target === e.currentTarget) {
+                if (e.target === e.currentTarget || (e.target as HTMLElement).parentElement === e.currentTarget && (e.target as HTMLElement).tagName === 'SPAN') { // Allow clicks on date number
                     onDateClick(date);
                 }
             }}
@@ -92,7 +91,7 @@ export function MonthlyView({
             role="button"
             aria-label={`View tasks for ${format(date, "MMMM d, yyyy")}`}
             tabIndex={0} 
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onDateClick(date); }}
+            onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && (e.target === e.currentTarget || (e.target as HTMLElement).parentElement === e.currentTarget)) onDateClick(date); }}
           >
             <span className={cn(
                 'text-xs font-medium self-start mb-1',
@@ -101,7 +100,7 @@ export function MonthlyView({
               {format(date, 'd')}
             </span>
             {dayScheduledTasks.length > 0 && (
-              <ScrollArea className="flex-grow max-h-[120px] pr-1"> {/* Increased max-h slightly */}
+              <ScrollArea className="flex-grow pr-1"> {/* Removed max-h-[120px] */}
                 <div className="space-y-0.5"> 
                   {dayScheduledTasks.map(st => {
                     const taskDetail = getTaskById(st.taskId);
@@ -126,7 +125,7 @@ export function MonthlyView({
           </div>
         </PopoverTrigger>
         {dayScheduledTasks.length > 0 && (
-          <PopoverContent className="w-64 p-0"> {/* Increased width slightly */}
+          <PopoverContent className="w-64 p-0">
             <div className="p-2 border-b">
               <p className="text-sm font-semibold">{format(date, "MMMM d, yyyy")}</p>
             </div>
@@ -164,8 +163,8 @@ export function MonthlyView({
             Day: (props) => <DayCell date={props.date} dayProps={props} />, 
           }}
           classNames={{
-            head_cell: "flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b",
-            cell: "flex-1 p-0 m-0 border-r last:border-r-0 relative", 
+            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", // Added w-0 and text-center
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", // Added w-0
             row: "flex w-full mt-0 border-b last:border-b-0", 
             table: "w-full border-collapse space-y-0",
             months: "p-0",
