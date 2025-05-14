@@ -34,7 +34,10 @@ export default function SchedulerPage() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([]);
   const [currentView, setCurrentView] = useState<'weekly' | 'monthly'>('weekly');
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  
+  const [currentWeekDate, setCurrentWeekDate] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [currentMonthDate, setCurrentMonthDate] = useState<Date>(startOfMonth(new Date()));
+
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
@@ -46,13 +49,14 @@ export default function SchedulerPage() {
 
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (currentView === 'weekly') {
-      setCurrentDate(currentDate => startOfWeek(currentDate, { weekStartsOn: 1 }));
-    } else {
-      setCurrentDate(currentDate => startOfMonth(currentDate));
-    }
-  }, [currentView]);
+  // No longer need this effect as dates are separate
+  // useEffect(() => {
+  //   if (currentView === 'weekly') {
+  //     setCurrentDate(currentDate => startOfWeek(currentDate, { weekStartsOn: 1 }));
+  //   } else {
+  //     setCurrentDate(currentDate => startOfMonth(currentDate));
+  //   }
+  // }, [currentView]);
 
 
   const handleDragTaskStart = (event: React.DragEvent<HTMLDivElement>, taskId: string) => {
@@ -93,28 +97,40 @@ export default function SchedulerPage() {
 
   // Navigation
   const handlePrev = () => {
-    setCurrentDate((prevDate) =>
-      currentView === 'weekly' ? subWeeks(prevDate, 1) : subMonths(prevDate, 1)
-    );
+    if (currentView === 'weekly') {
+      setCurrentWeekDate((prevDate) => subWeeks(prevDate, 1));
+    } else {
+      setCurrentMonthDate((prevDate) => subMonths(prevDate, 1));
+    }
   };
 
   const handleNext = () => {
-    setCurrentDate((prevDate) =>
-      currentView === 'weekly' ? addWeeks(prevDate, 1) : addMonths(prevDate, 1)
-    );
+    if (currentView === 'weekly') {
+      setCurrentWeekDate((prevDate) => addWeeks(prevDate, 1));
+    } else {
+      setCurrentMonthDate((prevDate) => addMonths(prevDate, 1));
+    }
   };
 
   const handleToday = () => {
     const today = new Date();
-    setCurrentDate(currentView === 'weekly' ? startOfWeek(today, { weekStartsOn: 1 }) : startOfMonth(today));
+    if (currentView === 'weekly') {
+      setCurrentWeekDate(startOfWeek(today, { weekStartsOn: 1 }));
+    } else {
+      setCurrentMonthDate(startOfMonth(today));
+    }
   };
 
   const handleSetDate = (date: Date) => {
-    setCurrentDate(currentView === 'weekly' ? startOfWeek(date, { weekStartsOn: 1 }) : startOfMonth(date));
+    if (currentView === 'weekly') {
+      setCurrentWeekDate(startOfWeek(date, { weekStartsOn: 1 }));
+    } else {
+      setCurrentMonthDate(startOfMonth(date));
+    }
   };
 
   const handleMonthlyDateClick = (date: Date) => {
-    setCurrentDate(startOfWeek(date, { weekStartsOn: 1 }));
+    setCurrentWeekDate(startOfWeek(date, { weekStartsOn: 1 }));
     setCurrentView('weekly');
   };
 
@@ -143,6 +159,8 @@ export default function SchedulerPage() {
       setPendingTaskAssignmentData(null);
     }
   };
+  
+  const activeDate = currentView === 'weekly' ? currentWeekDate : currentMonthDate;
 
   return (
       <div className="flex h-screen max-h-screen flex-col p-4 gap-4 bg-secondary/50">
@@ -153,7 +171,7 @@ export default function SchedulerPage() {
             <HeaderControls
               currentView={currentView}
               onViewChange={setCurrentView}
-              currentDate={currentDate}
+              currentDate={activeDate} // Pass the date of the active view
               onPrev={handlePrev}
               onNext={handleNext}
               onToday={handleToday}
@@ -170,7 +188,7 @@ export default function SchedulerPage() {
                   employees={employees}
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
-                  currentDate={currentDate}
+                  currentDate={currentWeekDate} // Pass weekly date
                   onDropTask={handleDropTask}
                   selectedEmployeeId={selectedEmployeeId}
                   onTaskClick={handleScheduledTaskClick}
@@ -181,7 +199,7 @@ export default function SchedulerPage() {
                   employees={employees}
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
-                  currentDate={currentDate}
+                  currentDate={currentMonthDate} // Pass monthly date
                   onDateClick={handleMonthlyDateClick}
                   selectedEmployeeId={selectedEmployeeId}
                   onDropTaskToCell={handleOpenAssignEmployeeDialog}
