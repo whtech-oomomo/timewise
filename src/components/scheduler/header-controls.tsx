@@ -13,7 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, CalendarIcon, ListChecks, UserSearch, FilterX, UsersRound } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarIcon, ListChecks, UserSearch, FilterX, UsersRound, Download } from 'lucide-react';
 
 interface HeaderControlsProps {
   currentView: 'weekly' | 'monthly';
@@ -24,10 +24,11 @@ interface HeaderControlsProps {
   onToday: () => void;
   onSetDate: (date: Date) => void;
   onManageTasks: () => void;
-  onManageEmployees: () => void; // New prop
-  employees: Employee[]; // Should be active employees for filtering
+  onManageEmployees: () => void;
+  employees: Employee[]; 
   selectedEmployeeId: string | null;
   onEmployeeFilterChange: (employeeId: string | null) => void;
+  onExportCSV: () => void; // New prop for CSV export
 }
 
 export function HeaderControls({
@@ -39,10 +40,11 @@ export function HeaderControls({
   onToday,
   onSetDate,
   onManageTasks,
-  onManageEmployees, // New prop
-  employees, // Active employees
+  onManageEmployees,
+  employees,
   selectedEmployeeId,
   onEmployeeFilterChange,
+  onExportCSV, // New prop
 }: HeaderControlsProps) {
   
   const displayDateRange = () => {
@@ -124,8 +126,11 @@ export function HeaderControls({
         <Button variant="outline" onClick={onManageTasks}>
           <ListChecks className="mr-2 h-4 w-4" /> Manage Tasks
         </Button>
-        <Button variant="outline" onClick={onManageEmployees}> {/* New Button */}
+        <Button variant="outline" onClick={onManageEmployees}>
           <UsersRound className="mr-2 h-4 w-4" /> Manage Employees
+        </Button>
+        <Button variant="outline" onClick={onExportCSV}> {/* New Export Button */}
+          <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
       </div>
     </div>
