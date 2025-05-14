@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 
 export interface Employee {
@@ -25,4 +26,11 @@ export interface TaskFormData {
   name: string;
   iconName: string;
   colorClasses: string;
+}
+
+// For pending task assignment when dropping on monthly view
+export interface PendingTaskAssignment {
+  taskId: string;
+  date: string; // YYYY-MM-DD format
+  taskName?: string; // For display in the assignment dialog
 }

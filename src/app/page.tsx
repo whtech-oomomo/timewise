@@ -1,15 +1,16 @@
 
 'use client';
 
-import type { Employee, Task, ScheduledTask, TaskFormData } from '@/lib/types';
+import type { Employee, Task, ScheduledTask, TaskFormData, PendingTaskAssignment } from '@/lib/types';
 import { useState, useEffect } from 'react';
 import { TaskSidebar } from '@/components/scheduler/task-sidebar';
 import { WeeklyView } from '@/components/scheduler/weekly-view';
 import { MonthlyView } from '@/components/scheduler/monthly-view';
 import { HeaderControls } from '@/components/scheduler/header-controls';
 import { ManageTasksDialog } from '@/components/scheduler/manage-tasks-dialog';
-import { ScheduledTaskDetailsDialog } from '@/components/scheduler/scheduled-task-details-dialog'; // New Dialog
-import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth } from 'date-fns';
+import { ScheduledTaskDetailsDialog } from '@/components/scheduler/scheduled-task-details-dialog';
+import { AssignEmployeeDialog } from '@/components/scheduler/assign-employee-dialog'; // New Dialog
+import { addWeeks, subWeeks, addMonths, subMonths, startOfWeek, startOfMonth, format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
 
@@ -39,6 +40,9 @@ export default function SchedulerPage() {
   const [selectedScheduledTask, setSelectedScheduledTask] = useState<ScheduledTask | null>(null);
   const [isTaskDetailsDialogOpen, setIsTaskDetailsDialogOpen] = useState(false);
 
+  const [isAssignEmployeeDialogOpen, setIsAssignEmployeeDialogOpen] = useState(false);
+  const [pendingTaskAssignmentData, setPendingTaskAssignmentData] = useState<PendingTaskAssignment | null>(null);
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,7 +71,7 @@ export default function SchedulerPage() {
     const employee = employees.find(e => e.id === employeeId);
     toast({
       title: "Task Scheduled",
-      description: `${task?.name || 'Task'} assigned to ${employee?.name || 'Employee'} on ${date}.`
+      description: `${task?.name || 'Task'} assigned to ${employee?.name || 'Employee'} on ${format(new Date(date), 'MMM d, yyyy')}.`
     });
   };
 
@@ -121,6 +125,23 @@ export default function SchedulerPage() {
     }
   };
 
+  const handleOpenAssignEmployeeDialog = (taskId: string, date: Date) => {
+    const task = tasks.find(t => t.id === taskId);
+    setPendingTaskAssignmentData({
+      taskId,
+      date: format(date, 'yyyy-MM-dd'),
+      taskName: task?.name || 'Unknown Task'
+    });
+    setIsAssignEmployeeDialogOpen(true);
+  };
+
+  const handleConfirmEmployeeAssignment = (employeeId: string) => {
+    if (pendingTaskAssignmentData) {
+      handleDropTask(employeeId, pendingTaskAssignmentData.date, pendingTaskAssignmentData.taskId);
+      setIsAssignEmployeeDialogOpen(false);
+      setPendingTaskAssignmentData(null);
+    }
+  };
 
   return (
       <div className="flex h-screen max-h-screen flex-col p-4 gap-4 bg-secondary/50">
@@ -149,7 +170,7 @@ export default function SchedulerPage() {
                 currentDate={currentDate}
                 onDropTask={handleDropTask}
                 selectedEmployeeId={selectedEmployeeId}
-                onTaskClick={handleScheduledTaskClick} // Pass handler
+                onTaskClick={handleScheduledTaskClick}
               />
             ) : (
               <MonthlyView
@@ -158,6 +179,7 @@ export default function SchedulerPage() {
                 currentDate={currentDate}
                 onDateClick={handleMonthlyDateClick}
                 selectedEmployeeId={selectedEmployeeId}
+                onDropTaskToCell={handleOpenAssignEmployeeDialog} // Pass handler for drop
               />
             )}
           </div>
@@ -176,6 +198,14 @@ export default function SchedulerPage() {
           scheduledTask={selectedScheduledTask}
           employees={employees}
           tasks={tasks}
+        />
+        <AssignEmployeeDialog
+          isOpen={isAssignEmployeeDialogOpen}
+          onOpenChange={setIsAssignEmployeeDialogOpen}
+          employees={employees}
+          taskName={pendingTaskAssignmentData?.taskName}
+          date={pendingTaskAssignmentData?.date}
+          onSubmit={handleConfirmEmployeeAssignment}
         />
       </div>
   );
