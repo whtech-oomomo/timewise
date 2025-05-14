@@ -74,13 +74,14 @@ export function MonthlyView({
         <PopoverTrigger asChild>
           <div
             className={cn(
-              'min-h-[7rem] border border-border p-1.5 flex flex-col cursor-pointer hover:bg-secondary/60 transition-colors duration-150',
+              'h-full min-h-[7rem] border border-border p-1.5 flex flex-col cursor-pointer hover:bg-secondary/60 transition-colors duration-150',
               isCurrentMonth ? 'bg-background' : 'bg-muted/40',
               isCellDraggedOver ? 'bg-accent ring-2 ring-accent-foreground' : '',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'relative' 
             )}
             onClick={(e) => {
+                // Only trigger date click if the click target is the cell itself or its direct date span child
                 if (e.target === e.currentTarget || 
                     ((e.target as HTMLElement).tagName === 'SPAN' && (e.target as HTMLElement).parentElement === e.currentTarget)) {
                     onDateClick(date);
@@ -90,7 +91,7 @@ export function MonthlyView({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, date)}
             role="button"
-            aria-label={`View tasks for ${format(date, "MMMM d, yyyy")}`}
+            aria-label={`View tasks for ${format(date, "MMMM d, yyyy")}, or click to switch to weekly view for this day.`}
             tabIndex={0} 
             onKeyDown={(e) => { 
               if ((e.key === 'Enter' || e.key === ' ') && 
@@ -107,7 +108,7 @@ export function MonthlyView({
               {format(date, 'd')}
             </span>
             {dayScheduledTasks.length > 0 && (
-              <ScrollArea className="pr-1"> {/* Removed flex-grow */}
+              <ScrollArea className="pr-1 flex-1"> 
                 <div className="space-y-0.5"> 
                   {dayScheduledTasks.map(st => {
                     const taskDetail = getTaskById(st.taskId);
@@ -170,8 +171,8 @@ export function MonthlyView({
             Day: (props) => <DayCell date={props.date} dayProps={props} />, 
           }}
           classNames={{
-            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", // Added text-center
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", // w-0 flex-1 for equal width
+            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", 
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", 
             row: "flex w-full mt-0 border-b last:border-b-0", 
             table: "w-full border-collapse space-y-0",
             months: "p-0",
@@ -184,3 +185,4 @@ export function MonthlyView({
     </Card>
   );
 }
+
