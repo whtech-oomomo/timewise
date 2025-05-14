@@ -1,6 +1,7 @@
 'use client';
 
 import type { Task, TaskFormData } from '@/lib/types';
+import React from 'react'; // Added React import
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
