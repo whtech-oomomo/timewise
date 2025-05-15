@@ -12,10 +12,16 @@ interface TaskItemProps {
 export function TaskItem({ task, onDragStart }: TaskItemProps) {
   const IconComponent = getTaskIcon(task.iconName);
 
+  const handleDragStart = (event: React.DragEvent<HTMLDivElement>) => {
+    // Use the existing onDragStart from props, which expects taskId
+    // This function is handleDragTaskStart in page.tsx which now expects type 'new-task'
+    onDragStart(event, task.id);
+  };
+
   return (
     <Card
       draggable
-      onDragStart={(e) => onDragStart(e, task.id)}
+      onDragStart={handleDragStart}
       className={cn("cursor-grab transition-shadow duration-150 hover:shadow-lg active:shadow-xl", task.colorClasses)}
     >
       <CardContent className="p-3 flex items-center gap-2">

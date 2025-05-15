@@ -13,14 +13,17 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface MonthlyViewProps {
-  employees: Employee[]; // All employees
+  employees: Employee[];
   tasks: Task[]; 
   scheduledTasks: ScheduledTask[];
   currentDate: Date; 
   onDateClick: (date: Date) => void; 
   selectedEmployeeId: string | null;
-  onDropTaskToCell: (taskId: string, date: Date) => void;
-  onScheduledTaskItemClick: (scheduledTaskId: string) => void; 
+  onDropTaskToCell: (newTaskId: string, date: Date) => void; // For new tasks from sidebar
+  onScheduledTaskItemClick: (scheduledTaskId: string, event: React.MouseEvent | React.KeyboardEvent) => void; 
+  selectedScheduledTaskIds: string[];
+  onTaskDragStart: (event: React.DragEvent<HTMLDivElement>, scheduledTaskId: string, type: 'existing-scheduled-task') => void;
+  onMoveExistingTasksInMonthlyView: (draggedScheduledTaskId: string, targetDateString: string) => void;
 }
 
 export function MonthlyView({
@@ -30,8 +33,11 @@ export function MonthlyView({
   currentDate,
   onDateClick,
   selectedEmployeeId,
-  onDropTaskToCell,
+  onDropTaskToCell, // For new tasks
   onScheduledTaskItemClick,
+  selectedScheduledTaskIds,
+  onTaskDragStart,
+  onMoveExistingTasksInMonthlyView, // For existing tasks
 }: MonthlyViewProps) {
   
   const getTaskById = (taskId: string): Task | undefined => tasks.find(t => t.id === taskId);
@@ -53,8 +59,19 @@ export function MonthlyView({
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>, date: Date) => {
     event.preventDefault();
     const hasActiveEmployees = employees.some(emp => emp.isActive);
-    if (hasActiveEmployees) {
+    let dragData;
+    try {
+        dragData = JSON.parse(event.dataTransfer.getData('application/json'));
+    } catch (e) {
+        // If not JSON, could be a plain text (e.g. from old sidebar implementation)
+        // or just no relevant data
+    }
+
+    if ((dragData && dragData.type === 'new-task' && hasActiveEmployees) || (dragData && dragData.type === 'existing-scheduled-task')) {
       setDraggedOverDate(format(date, 'yyyy-MM-dd'));
+      event.dataTransfer.dropEffect = "move";
+    } else {
+      event.dataTransfer.dropEffect = "none";
     }
   };
 
@@ -65,10 +82,40 @@ export function MonthlyView({
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, date: Date) => {
     event.preventDefault();
     setDraggedOverDate(null);
-    const taskId = event.dataTransfer.getData('text/plain');
     const hasActiveEmployees = employees.some(emp => emp.isActive);
-    if (taskId && hasActiveEmployees) { 
-      onDropTaskToCell(taskId, date);
+    
+    let draggedDataJSON: string | null = null;
+    try {
+      draggedDataJSON = event.dataTransfer.getData('application/json');
+    } catch (e) { /* ignore, handled by fallback or error */ }
+
+    if (!draggedDataJSON) {
+        const plainData = event.dataTransfer.getData('text/plain'); // Fallback for old sidebar drag
+        if (plainData && hasActiveEmployees) {
+            onDropTaskToCell(plainData, date); // Assumes plainData is a new task ID
+        } else if (!hasActiveEmployees && plainData) {
+            // Potentially show toast that no active employees to assign new task
+        }
+        return;
+    }
+
+    let data: { type: string; id: string };
+    try {
+      data = JSON.parse(draggedDataJSON);
+    } catch (e) {
+      console.error("Invalid drag data JSON on monthly drop", e);
+      // Consider a toast for invalid drag data
+      return;
+    }
+  
+    if (data.type === 'new-task') {
+      if (hasActiveEmployees) {
+        onDropTaskToCell(data.id, date); // data.id is the task definition ID
+      } else {
+        // Toast: Cannot assign new task, no active employees.
+      }
+    } else if (data.type === 'existing-scheduled-task') {
+      onMoveExistingTasksInMonthlyView(data.id, format(date, 'yyyy-MM-dd'));
     }
   };
 
@@ -80,8 +127,8 @@ export function MonthlyView({
     const dayScheduledTasks = tasksForDay(date); 
     const isCurrentMonth = isSameMonth(date, currentDate);
     const dateStr = format(date, 'yyyy-MM-dd');
-    const hasActiveEmployees = employees.some(emp => emp.isActive);
-    const isCellDraggedOver = draggedOverDate === dateStr && hasActiveEmployees;
+    const hasActiveEmployees = employees.some(emp => emp.isActive); // Check if any employee is active
+    const isCellDraggedOver = draggedOverDate === dateStr;
 
 
     return (
@@ -136,9 +183,11 @@ export function MonthlyView({
                         scheduledTaskId={st.id}
                         employeeName={employeeDetail ? `${employeeDetail.firstName} ${employeeDetail.lastName}` : undefined}
                         onClick={(id, event) => { 
-                           onScheduledTaskItemClick(id);
+                           onScheduledTaskItemClick(id, event);
                         }}
                         isCompact={true}
+                        isSelected={selectedScheduledTaskIds.includes(st.id)}
+                        onDragStart={(event) => onTaskDragStart(event, st.id, 'existing-scheduled-task')}
                       />
                     );
                   })}
@@ -159,9 +208,10 @@ export function MonthlyView({
                  const employeeDetail = getEmployeeById(st.employeeId);
                  if (!taskDetail) return null;
                  const employeeFullName = employeeDetail ? `${employeeDetail.firstName} ${employeeDetail.lastName}` : '';
+                 const Icon = getTaskIcon(taskDetail.iconName);
                  return (
                    <div key={st.id} className={`text-xs p-1 rounded-sm ${taskDetail.colorClasses} flex items-start gap-1.5`}>
-                      {React.createElement(getTaskIcon(taskDetail.iconName), {className:"w-3 h-3 shrink-0 mt-0.5"})}
+                      <Icon className="w-3 h-3 shrink-0 mt-0.5"/>
                       <span className="whitespace-normal break-words">
                         {employeeFullName ? `${employeeFullName}: ` : ''}{taskDetail.name}
                       </span>

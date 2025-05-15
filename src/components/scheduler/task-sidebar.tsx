@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface TaskSidebarProps {
   tasks: Task[];
-  onDragTaskStart: (event: React.DragEvent<HTMLDivElement>, taskId: string) => void;
+  onDragTaskStart: (event: React.DragEvent<HTMLDivElement>, taskId: string, type: 'new-task') => void;
 }
 
 export function TaskSidebar({ tasks, onDragTaskStart }: TaskSidebarProps) {
@@ -19,7 +19,10 @@ export function TaskSidebar({ tasks, onDragTaskStart }: TaskSidebarProps) {
         <CardContent className="p-4 space-y-3">
           {tasks.length > 0 ? (
             tasks.map((task) => (
-              <TaskItem key={task.id} task={task} onDragStart={onDragTaskStart} />
+              <TaskItem 
+                key={task.id} 
+                task={task} 
+                onDragStart={(event, taskId) => onDragTaskStart(event, taskId, 'new-task')} />
             ))
           ) : (
             <p className="text-sm text-muted-foreground">No tasks available. Add tasks via "Manage Tasks".</p>
