@@ -11,9 +11,9 @@ import React, { useState, useEffect } from 'react';
 
 interface WeeklyViewProps {
   employees: Employee[];
-  tasks: Task[]; 
+  tasks: Task[];
   scheduledTasks: ScheduledTask[];
-  currentDate: Date; 
+  currentDate: Date;
   onDropTask: (employeeId: string, date: string, event: React.DragEvent<HTMLDivElement>) => void;
   selectedEmployeeId: string | null;
   onTaskClick: (scheduledTaskId: string, event?: React.MouseEvent | React.KeyboardEvent) => void;
@@ -53,15 +53,15 @@ export function WeeklyView({
   };
 
   const handleCellClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // If the click is directly on the cell and not on a task item within it
     if (e.target === e.currentTarget) {
       onClearSelections();
     }
   };
 
-  const filteredEmployees = selectedEmployeeId
-    ? employees.filter(emp => emp.id === selectedEmployeeId)
-    : employees;
+  const activeEmployees = employees.filter(emp => emp.isActive);
+  const employeesToRender = selectedEmployeeId
+    ? activeEmployees.filter(emp => emp.id === selectedEmployeeId)
+    : activeEmployees;
 
   const isDayToday = (day: Date): boolean => {
     return clientToday ? isSameDay(day, clientToday) : false;
@@ -79,7 +79,7 @@ export function WeeklyView({
                 key={day.toISOString()}
                 className={cn(
                   "sticky top-0 z-10 p-3 text-center font-semibold bg-muted border-b text-sm",
-                  clientToday && isDayToday(day) ? "text-primary font-bold" : ""
+                  isDayToday(day) ? "text-primary font-bold" : ""
                 )}
               >
                 <div>{format(day, 'EEE')}</div>
@@ -88,21 +88,19 @@ export function WeeklyView({
             ))}
 
             {/* Employee Rows */}
-            {filteredEmployees.map((employee) => (
+            {employeesToRender.map((employee) => (
               <React.Fragment key={employee.id}>
                 <div className={cn(
-                  "p-3 border-b border-r text-sm font-medium h-auto min-h-[80px] flex items-center justify-start sticky left-0 bg-background z-[5]",
-                  !employee.isActive && "opacity-60 bg-muted/30"
+                  "p-3 border-b border-r text-sm font-medium h-auto min-h-[80px] flex items-center justify-start sticky left-0 bg-background z-[5]"
                 )}>
                   {employee.firstName} {employee.lastName}
-                  {!employee.isActive && <span className="ml-2 text-xs text-muted-foreground">(Inactive)</span>}
                 </div>
                 {daysInWeek.map((day) => {
                   const cellDateStr = format(day, 'yyyy-MM-dd');
                   const tasksForCell = scheduledTasks.filter(
                     (st) => st.employeeId === employee.id && st.date === cellDateStr
                   );
-                  const isCellDraggedOver = draggedOverCell?.employeeId === employee.id && draggedOverCell?.date === cellDateStr && employee.isActive;
+                  const isCellDraggedOver = draggedOverCell?.employeeId === employee.id && draggedOverCell?.date === cellDateStr;
 
                   return (
                     <div
@@ -110,14 +108,13 @@ export function WeeklyView({
                       className={cn(
                         "p-2 border-b min-h-[80px] transition-colors duration-150",
                         isCellDraggedOver ? "bg-accent" : "bg-background",
-                        employee.isActive && "hover:bg-secondary/50",
-                        !employee.isActive && "bg-muted/20",
-                        clientToday && isDayToday(day) ? (employee.isActive ? "bg-primary/5" : "bg-primary/10") : ""
+                        "hover:bg-secondary/50",
+                        isDayToday(day) ? "bg-primary/5" : ""
                       )}
-                      onDragOver={employee.isActive ? handleDragOver : undefined}
-                      onDrop={employee.isActive ? (e) => { onDropTask(employee.id, cellDateStr, e); setDraggedOverCell(null); } : undefined}
-                      onDragEnter={employee.isActive ? () => setDraggedOverCell({ employeeId: employee.id, date: cellDateStr }) : undefined}
-                      onDragLeave={employee.isActive ? () => setDraggedOverCell(null) : undefined}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => { onDropTask(employee.id, cellDateStr, e); setDraggedOverCell(null); }}
+                      onDragEnter={() => setDraggedOverCell({ employeeId: employee.id, date: cellDateStr })}
+                      onDragLeave={() => setDraggedOverCell(null)}
                       onClick={handleCellClick}
                     >
                       <div className="space-y-1">
@@ -127,7 +124,7 @@ export function WeeklyView({
                             <ScheduledTaskDisplayItem
                               key={st.id}
                               task={taskDetail}
-                              scheduledTaskId={st.id} 
+                              scheduledTaskId={st.id}
                               onClick={(id, event) => onTaskClick(id, event)}
                               isSelected={selectedScheduledTaskIds.includes(st.id)}
                               onDragStart={(event) => onTaskDragStart(event, st.id, 'existing-scheduled-task')}
@@ -140,15 +137,16 @@ export function WeeklyView({
                 })}
               </React.Fragment>
             ))}
-             {filteredEmployees.length === 0 && selectedEmployeeId && (
+            {/* Conditional rendering for empty states */}
+            {employees.length === 0 && (
               <div className="col-span-8 p-6 text-center text-muted-foreground">
-                Selected employee not found or no employees match the current filter.
+                  No employees have been added yet. Click "Manage Employees" to add them.
               </div>
             )}
-             {employees.length === 0 && !selectedEmployeeId && (
-                <div className="col-span-8 p-6 text-center text-muted-foreground">
-                    No employees have been added yet. Click "Manage Employees" to add them.
-                </div>
+            {employees.length > 0 && employeesToRender.length === 0 && (
+              <div className="col-span-8 p-6 text-center text-muted-foreground">
+                  No active employees match the current filter criteria.
+              </div>
             )}
           </div>
         </CardContent>
