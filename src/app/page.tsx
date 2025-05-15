@@ -66,7 +66,7 @@ export default function SchedulerPage() {
       taskId,
       date,
       status: 'Scheduled',
-      hours: taskDefinition?.defaultHours || 8, // Use task's default hours or fallback
+      hours: taskDefinition?.defaultHours || 8, 
     };
     setScheduledTasks((prev) => [...prev, newScheduledTask]);
     
@@ -85,7 +85,7 @@ export default function SchedulerPage() {
     const newTask: Task = { 
       ...taskData, 
       id: uuidv4(),
-      defaultHours: taskData.defaultHours || 8 // Ensure defaultHours is set
+      defaultHours: taskData.defaultHours || 8 
     };
     setTasks((prev) => [...prev, newTask]);
   };
@@ -258,6 +258,23 @@ export default function SchedulerPage() {
     toast({
       title: "Task Updated",
       description: `Hours for task "${updatedTaskDefinition?.name || 'Task'}" have been updated to ${newHours}.`,
+    });
+  };
+
+  const handleDeleteScheduledTask = (scheduledTaskId: string) => {
+    const taskToDelete = scheduledTasks.find(st => st.id === scheduledTaskId);
+    if (!taskToDelete) return;
+
+    const taskDefinition = tasks.find(t => t.id === taskToDelete.taskId);
+    const employee = employees.find(e => e.id === taskToDelete.employeeId);
+
+    setScheduledTasks(prevTasks => prevTasks.filter(task => task.id !== scheduledTaskId));
+    setIsTaskDetailsDialogOpen(false);
+    setSelectedScheduledTask(null);
+    toast({
+      title: "Scheduled Task Deleted",
+      description: `Task "${taskDefinition?.name || 'Task'}" for ${employee?.firstName || 'employee'} on ${format(new Date(taskToDelete.date), 'MMM d')} has been deleted.`,
+      variant: "destructive"
     });
   };
 
@@ -474,6 +491,7 @@ export default function SchedulerPage() {
           employees={employees}
           tasks={tasks}
           onSave={handleSaveScheduledTaskDetails}
+          onDelete={handleDeleteScheduledTask}
         />
         <AssignEmployeeDialog
           isOpen={isAssignEmployeeDialogOpen}
@@ -486,3 +504,4 @@ export default function SchedulerPage() {
       </div>
   );
 }
+

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { ScheduledTask, Employee, Task } from '@/lib/types';
@@ -16,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { Trash2 } from 'lucide-react';
 
 interface ScheduledTaskDetailsDialogProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ interface ScheduledTaskDetailsDialogProps {
   employees: Employee[];
   tasks: Task[];
   onSave?: (taskId: string, newHours: number) => void;
+  onDelete?: (scheduledTaskId: string) => void;
 }
 
 export function ScheduledTaskDetailsDialog({
@@ -33,6 +36,7 @@ export function ScheduledTaskDetailsDialog({
   employees,
   tasks,
   onSave,
+  onDelete,
 }: ScheduledTaskDetailsDialogProps) {
   const [editableHours, setEditableHours] = useState<string>((scheduledTask?.hours || 8).toString());
 
@@ -40,7 +44,7 @@ export function ScheduledTaskDetailsDialog({
     if (scheduledTask) {
       setEditableHours((scheduledTask.hours || 8).toString());
     } else {
-      setEditableHours("8"); // Default if no task is selected (e.g., dialog reset)
+      setEditableHours("8"); 
     }
   }, [scheduledTask]);
 
@@ -54,15 +58,21 @@ export function ScheduledTaskDetailsDialog({
 
   const handleSaveClick = () => {
     if (onSave && scheduledTask) {
-      const hours = parseInt(editableHours, 10);
-      if (!isNaN(hours) && hours > 0) {
+      const hours = parseFloat(editableHours); // Use parseFloat for decimals
+      if (!isNaN(hours) && hours >= 0.5) { // Ensure hours are valid
         onSave(scheduledTask.id, hours);
       } else {
         // Optionally, add a toast here for invalid hours input
-        console.error("Invalid hours input");
+        console.error("Invalid hours input. Must be at least 0.5.");
       }
     }
   };
+
+  const handleDeleteClick = () => {
+    if (onDelete && scheduledTask) {
+      onDelete(scheduledTask.id);
+    }
+  }
 
   const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditableHours(e.target.value);
@@ -143,17 +153,26 @@ export function ScheduledTaskDetailsDialog({
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {onSave ? "Cancel" : "Close"}
-          </Button>
-          {onSave && (
-            <Button onClick={handleSaveClick}>
-              Save
+        <DialogFooter className="sm:justify-between">
+          {onDelete && (
+             <Button variant="destructive" onClick={handleDeleteClick} className="mr-auto">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
             </Button>
           )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+                {onSave ? "Cancel" : "Close"}
+            </Button>
+            {onSave && (
+                <Button onClick={handleSaveClick}>
+                Save
+                </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
