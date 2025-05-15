@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import type { Employee, Task, ScheduledTask, TaskFormData, EmployeeFormData, PendingTaskAssignment, ImportedEmployeeData } from '@/lib/types';
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TaskSidebar } from '@/components/scheduler/task-sidebar';
 import { WeeklyView } from '@/components/scheduler/weekly-view';
 import { MonthlyView } from '@/components/scheduler/monthly-view';
@@ -50,34 +49,99 @@ export default function SchedulerPage() {
   const [isAssignEmployeeDialogOpen, setIsAssignEmployeeDialogOpen] = useState(false);
   const [pendingTaskAssignmentData, setPendingTaskAssignmentData] = useState<PendingTaskAssignment | null>(null);
 
+  const [selectedScheduledTaskIds, setSelectedScheduledTaskIds] = useState<string[]>([]);
+
   const { toast } = useToast();
+  const mainContainerRef = useRef<HTMLDivElement>(null);
 
   const activeEmployees = useMemo(() => employees.filter(emp => emp.isActive), [employees]);
 
-  const handleDragTaskStart = (event: React.DragEvent<HTMLDivElement>, taskId: string) => {
-    event.dataTransfer.setData('text/plain', taskId);
+  const handleDragTaskStart = (event: React.DragEvent<HTMLDivElement>, taskId: string, type: 'new-task' | 'existing-scheduled-task' = 'new-task') => {
+    const dragData = JSON.stringify({ type, id: taskId });
+    event.dataTransfer.setData('application/json', dragData);
   };
 
-  const handleDropTask = (employeeId: string, date: string, taskId: string) => {
-    const taskDefinition = tasks.find(t => t.id === taskId);
-    const newScheduledTask: ScheduledTask = {
-      id: uuidv4(), 
-      employeeId,
-      taskId,
-      date,
-      status: 'Scheduled',
-      hours: taskDefinition?.defaultHours || 8, 
-    };
-    setScheduledTasks((prev) => [...prev, newScheduledTask]);
-    
-    setSelectedScheduledTask(newScheduledTask);
-    setIsTaskDetailsDialogOpen(true);
+  const handleDropTask = (targetEmployeeId: string, targetDate: string, event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    let draggedDataJSON: string | null = null;
+    try {
+      draggedDataJSON = event.dataTransfer.getData('application/json');
+    } catch (e) {
+      // برخی مرورگرها ممکن است برای text/plain خطا بدهند اگر application/json تنظیم شده باشد
+      // This can happen if only text/plain was set and we try to get application/json
+    }
 
-    const employee = employees.find(e => e.id === employeeId);
-    toast({
-      title: "Task Scheduled",
-      description: `${taskDefinition?.name || 'Task'} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(date), 'MMM d, yyyy')}. Please review details.`
-    });
+    if (!draggedDataJSON) {
+        // Fallback for tasks from sidebar if only text/plain was set (older logic)
+        const plainData = event.dataTransfer.getData('text/plain');
+        if (plainData) {
+            draggedDataJSON = JSON.stringify({ type: 'new-task', id: plainData });
+        } else {
+            console.error("No valid task ID found in drag data.");
+            toast({ title: "Drag Error", description: "Could not retrieve task data.", variant: "destructive" });
+            return;
+        }
+    }
+
+    let data: { type: string; id: string };
+    try {
+      data = JSON.parse(draggedDataJSON);
+    } catch (e) {
+      console.error("Invalid drag data JSON", e);
+      toast({ title: "Drag Error", description: "Invalid task data format.", variant: "destructive" });
+      return;
+    }
+  
+    const { type, id: draggedItemId } = data;
+  
+    if (type === 'new-task') {
+      const taskDefinition = tasks.find(t => t.id === draggedItemId);
+      if (!taskDefinition) {
+        toast({ title: "Task Error", description: `Task definition for ID "${draggedItemId}" not found.`, variant: "destructive" });
+        return;
+      }
+  
+      const newScheduledTask: ScheduledTask = {
+        id: uuidv4(),
+        employeeId: targetEmployeeId,
+        taskId: taskDefinition.id,
+        date: targetDate,
+        status: 'Scheduled',
+        hours: taskDefinition?.defaultHours || 8,
+      };
+      setScheduledTasks((prev) => [...prev, newScheduledTask]);
+      setSelectedScheduledTask(newScheduledTask);
+      setIsTaskDetailsDialogOpen(true);
+  
+      const employee = employees.find(e => e.id === targetEmployeeId);
+      toast({
+        title: "Task Scheduled",
+        description: `${taskDefinition.name} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(targetDate), 'MMM d, yyyy')}. Please review details.`
+      });
+    } else if (type === 'existing-scheduled-task') {
+      const tasksToMoveIds = selectedScheduledTaskIds.length > 0 && selectedScheduledTaskIds.includes(draggedItemId)
+        ? selectedScheduledTaskIds
+        : [draggedItemId];
+  
+      setScheduledTasks(prevScheduledTasks =>
+        prevScheduledTasks.map(st => {
+          if (tasksToMoveIds.includes(st.id)) {
+            return {
+              ...st,
+              employeeId: targetEmployeeId,
+              date: targetDate,
+            };
+          }
+          return st;
+        })
+      );
+      const employee = employees.find(e => e.id === targetEmployeeId);
+      toast({
+        title: `${tasksToMoveIds.length} Task(s) Moved`,
+        description: `Moved to ${employee?.firstName || 'employee'} on ${format(new Date(targetDate), 'MMM d, yyyy')}.`,
+      });
+      setSelectedScheduledTaskIds([]); // Clear selection after move
+    }
   };
 
   // Task CRUD operations
@@ -126,6 +190,11 @@ export default function SchedulerPage() {
     if (selectedEmployeeId === employeeIdToDelete) {
       setSelectedEmployeeId(null); 
     }
+    setSelectedScheduledTaskIds(prevIds => prevIds.filter(id => {
+        const task = scheduledTasks.find(st => st.id === id);
+        return task && task.employeeId !== employeeIdToDelete;
+    }));
+
 
     toast({
       title: "Employee Deleted",
@@ -236,13 +305,28 @@ export default function SchedulerPage() {
   const handleMonthlyDateClick = (date: Date) => {
     setCurrentWeekDate(startOfWeek(date, { weekStartsOn: 1 }));
     setCurrentView('weekly');
+    setSelectedScheduledTaskIds([]); // Clear selection when changing view context
   };
 
-  const handleScheduledTaskClick = (scheduledTaskId: string) => {
-    const taskToView = scheduledTasks.find(st => st.id === scheduledTaskId);
-    if (taskToView) {
-      setSelectedScheduledTask(taskToView);
-      setIsTaskDetailsDialogOpen(true);
+  const handleScheduledTaskClick = (clickedScheduledTaskId: string, event?: React.MouseEvent | React.KeyboardEvent) => {
+    const isCtrlCmd = event && (event.metaKey || event.ctrlKey);
+
+    if (isCtrlCmd) {
+      setSelectedScheduledTaskIds(prevSelectedIds =>
+        prevSelectedIds.includes(clickedScheduledTaskId)
+          ? prevSelectedIds.filter(id => id !== clickedScheduledTaskId)
+          : [...prevSelectedIds, clickedScheduledTaskId]
+      );
+    } else {
+      setSelectedScheduledTaskIds([clickedScheduledTaskId]);
+      const taskToView = scheduledTasks.find(st => st.id === clickedScheduledTaskId);
+      if (taskToView) {
+        setSelectedScheduledTask(taskToView);
+        setIsTaskDetailsDialogOpen(true);
+      } else {
+        setSelectedScheduledTask(null); // Ensure deselection if task not found
+        setIsTaskDetailsDialogOpen(false);
+      }
     }
   };
 
@@ -254,7 +338,8 @@ export default function SchedulerPage() {
     );
     setIsTaskDetailsDialogOpen(false);
     setSelectedScheduledTask(null);
-    const updatedTaskDefinition = tasks.find(t => t.id === scheduledTasks.find(st => st.id === taskId)?.taskId);
+    const scheduledTaskInfo = scheduledTasks.find(st => st.id === taskId);
+    const updatedTaskDefinition = tasks.find(t => t.id === scheduledTaskInfo?.taskId);
     toast({
       title: "Task Updated",
       description: `Hours for task "${updatedTaskDefinition?.name || 'Task'}" have been updated to ${newHours}.`,
@@ -269,6 +354,7 @@ export default function SchedulerPage() {
     const employee = employees.find(e => e.id === taskToDelete.employeeId);
 
     setScheduledTasks(prevTasks => prevTasks.filter(task => task.id !== scheduledTaskId));
+    setSelectedScheduledTaskIds(prevIds => prevIds.filter(id => id !== scheduledTaskId));
     setIsTaskDetailsDialogOpen(false);
     setSelectedScheduledTask(null);
     toast({
@@ -290,7 +376,20 @@ export default function SchedulerPage() {
 
   const handleConfirmEmployeeAssignment = (employeeId: string) => {
     if (pendingTaskAssignmentData) {
-      handleDropTask(employeeId, pendingTaskAssignmentData.date, pendingTaskAssignmentData.taskId);
+       // Create a dummy event for handleDropTask or refactor handleDropTask
+      const dummyDragEvent = {
+        dataTransfer: {
+          getData: (format: string) => {
+            if (format === 'application/json') {
+              return JSON.stringify({ type: 'new-task', id: pendingTaskAssignmentData.taskId });
+            }
+            return '';
+          }
+        },
+        preventDefault: () => {},
+      } as unknown as React.DragEvent<HTMLDivElement>;
+
+      handleDropTask(employeeId, pendingTaskAssignmentData.date, dummyDragEvent);
       setIsAssignEmployeeDialogOpen(false);
       setPendingTaskAssignmentData(null);
     }
@@ -414,16 +513,34 @@ export default function SchedulerPage() {
     }
   };
 
+  const handleClearSelections = () => {
+    setSelectedScheduledTaskIds([]);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedScheduledTaskIds([]);
+        setIsTaskDetailsDialogOpen(false);
+        setSelectedScheduledTask(null);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
 
   return (
-      <div className="flex h-screen max-h-screen flex-col p-4 gap-4 bg-secondary/50">
+      <div ref={mainContainerRef} className="flex h-screen max-h-screen flex-col p-4 gap-4 bg-secondary/50">
         <h1 className="text-3xl font-bold text-primary">TimeWise Scheduler</h1>
         <div className="flex flex-grow gap-4 overflow-hidden">
-          <TaskSidebar tasks={tasks} onDragTaskStart={handleDragTaskStart} />
+          <TaskSidebar tasks={tasks} onDragTaskStart={(event, taskId) => handleDragTaskStart(event, taskId, 'new-task')} />
           <div className="flex flex-1 flex-col gap-0 overflow-hidden">
             <HeaderControls
               currentView={currentView}
-              onViewChange={setCurrentView}
+              onViewChange={(view) => { setCurrentView(view); setSelectedScheduledTaskIds([]); }}
               currentDate={activeDate} 
               onPrev={handlePrev}
               onNext={handleNext}
@@ -446,6 +563,9 @@ export default function SchedulerPage() {
                   onDropTask={handleDropTask}
                   selectedEmployeeId={selectedEmployeeId}
                   onTaskClick={handleScheduledTaskClick}
+                  selectedScheduledTaskIds={selectedScheduledTaskIds}
+                  onTaskDragStart={handleDragTaskStart}
+                  onClearSelections={handleClearSelections}
                 />
               </div>
               <div className={cn('h-full w-full', currentView === 'monthly' ? 'flex' : 'hidden')}>
@@ -485,7 +605,10 @@ export default function SchedulerPage() {
           isOpen={isTaskDetailsDialogOpen}
           onOpenChange={(open) => {
             setIsTaskDetailsDialogOpen(open);
-            if (!open) setSelectedScheduledTask(null); 
+            if (!open) {
+                setSelectedScheduledTask(null);
+                // Do not clear multi-selection here, only single task view state
+            } 
           }}
           scheduledTask={selectedScheduledTask}
           employees={employees}
@@ -504,4 +627,3 @@ export default function SchedulerPage() {
       </div>
   );
 }
-

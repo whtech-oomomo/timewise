@@ -10,29 +10,44 @@ interface ScheduledTaskDisplayItemProps {
   scheduledTaskId: string; 
   onClick?: (scheduledTaskId: string, event: React.MouseEvent<HTMLDivElement>) => void; 
   employeeName?: string; 
+  isSelected?: boolean;
+  onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void;
 }
 
-export function ScheduledTaskDisplayItem({ task, isCompact = false, scheduledTaskId, onClick, employeeName }: ScheduledTaskDisplayItemProps) {
+export function ScheduledTaskDisplayItem({ 
+  task, 
+  isCompact = false, 
+  scheduledTaskId, 
+  onClick, 
+  employeeName,
+  isSelected = false,
+  onDragStart,
+}: ScheduledTaskDisplayItemProps) {
   const IconComponent = getTaskIcon(task.iconName);
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => { 
     if (onClick) {
-      event.stopPropagation(); 
+      // Stop propagation handled by individual task click vs cell click
       onClick(scheduledTaskId, event);
     }
   };
 
   const displayTitle = employeeName ? `${employeeName} - ${task.name}` : task.name;
-  const displayText = employeeName ? `${employeeName}: ${task.name}` : task.name;
+  const displayText = employeeName && isCompact ? `${employeeName}: ${task.name}` : task.name;
 
 
   return (
     <div
+      draggable={!!onDragStart} // Only draggable if onDragStart is provided
+      onDragStart={onDragStart}
+      data-is-task-item="true"
       className={cn(
         'p-1 rounded-md text-xs flex items-start gap-1.5 shadow-sm', 
         task.colorClasses,
         isCompact ? 'text-[10px] leading-tight' : '',
-        onClick ? 'cursor-pointer hover:opacity-80' : 'cursor-grab'
+        onClick ? 'cursor-pointer hover:opacity-80' : (onDragStart ? 'cursor-grab' : ''),
+        isSelected && !isCompact ? 'ring-2 ring-primary ring-offset-1' : '', // Visual cue for selection
+        isSelected && isCompact ? 'ring-1 ring-primary' : ''
       )}
       title={displayTitle}
       onClick={onClick ? handleClick : undefined}

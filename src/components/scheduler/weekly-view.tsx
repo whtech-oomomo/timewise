@@ -10,13 +10,16 @@ import { cn } from '@/lib/utils';
 import React, { useState, useEffect } from 'react';
 
 interface WeeklyViewProps {
-  employees: Employee[]; // All employees (active and inactive for display purposes)
+  employees: Employee[];
   tasks: Task[]; 
   scheduledTasks: ScheduledTask[];
   currentDate: Date; 
-  onDropTask: (employeeId: string, date: string, taskId: string) => void;
+  onDropTask: (employeeId: string, date: string, event: React.DragEvent<HTMLDivElement>) => void;
   selectedEmployeeId: string | null;
-  onTaskClick: (scheduledTaskId: string) => void;
+  onTaskClick: (scheduledTaskId: string, event?: React.MouseEvent | React.KeyboardEvent) => void;
+  selectedScheduledTaskIds: string[];
+  onTaskDragStart: (event: React.DragEvent<HTMLDivElement>, scheduledTaskId: string, type: 'existing-scheduled-task') => void;
+  onClearSelections: () => void;
 }
 
 export function WeeklyView({
@@ -27,6 +30,9 @@ export function WeeklyView({
   onDropTask,
   selectedEmployeeId,
   onTaskClick,
+  selectedScheduledTaskIds,
+  onTaskDragStart,
+  onClearSelections,
 }: WeeklyViewProps) {
   const [draggedOverCell, setDraggedOverCell] = useState<{ employeeId: string; date: string } | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
@@ -43,16 +49,14 @@ export function WeeklyView({
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>, employeeId: string, date: Date) => {
-    event.preventDefault();
-    const taskId = event.dataTransfer.getData('text/plain');
-    const employee = employees.find(e => e.id === employeeId);
-    if (taskId && employee && employee.isActive) { // Only allow dropping on active employees
-      onDropTask(employeeId, format(date, 'yyyy-MM-dd'), taskId);
+  const handleCellClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // If the click is directly on the cell and not on a task item within it
+    if (e.target === e.currentTarget) {
+      onClearSelections();
     }
-    setDraggedOverCell(null);
   };
 
   const filteredEmployees = selectedEmployeeId
@@ -75,7 +79,7 @@ export function WeeklyView({
                 key={day.toISOString()}
                 className={cn(
                   "sticky top-0 z-10 p-3 text-center font-semibold bg-muted border-b text-sm",
-                  isDayToday(day) ? "text-primary font-bold" : ""
+                  clientToday && isDayToday(day) ? "text-primary font-bold" : ""
                 )}
               >
                 <div>{format(day, 'EEE')}</div>
@@ -102,18 +106,19 @@ export function WeeklyView({
 
                   return (
                     <div
-                      key={day.toISOString()}
+                      key={`${employee.id}-${day.toISOString()}`}
                       className={cn(
                         "p-2 border-b min-h-[80px] transition-colors duration-150",
                         isCellDraggedOver ? "bg-accent" : "bg-background",
                         employee.isActive && "hover:bg-secondary/50",
                         !employee.isActive && "bg-muted/20",
-                        isDayToday(day) ? (employee.isActive ? "bg-primary/5" : "bg-primary/10") : ""
+                        clientToday && isDayToday(day) ? (employee.isActive ? "bg-primary/5" : "bg-primary/10") : ""
                       )}
                       onDragOver={employee.isActive ? handleDragOver : undefined}
-                      onDrop={employee.isActive ? (e) => handleDrop(e, employee.id, day) : undefined}
+                      onDrop={employee.isActive ? (e) => { onDropTask(employee.id, cellDateStr, e); setDraggedOverCell(null); } : undefined}
                       onDragEnter={employee.isActive ? () => setDraggedOverCell({ employeeId: employee.id, date: cellDateStr }) : undefined}
                       onDragLeave={employee.isActive ? () => setDraggedOverCell(null) : undefined}
+                      onClick={handleCellClick}
                     >
                       <div className="space-y-1">
                         {tasksForCell.map((st) => {
@@ -123,7 +128,9 @@ export function WeeklyView({
                               key={st.id}
                               task={taskDetail}
                               scheduledTaskId={st.id} 
-                              onClick={onTaskClick}   
+                              onClick={(id, event) => onTaskClick(id, event)}
+                              isSelected={selectedScheduledTaskIds.includes(st.id)}
+                              onDragStart={(event) => onTaskDragStart(event, st.id, 'existing-scheduled-task')}
                             />
                           ) : null;
                         })}
