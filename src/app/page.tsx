@@ -65,13 +65,19 @@ export default function SchedulerPage() {
       taskId,
       date,
       status: 'Scheduled',
+      hours: 8, // Default hours
     };
     setScheduledTasks((prev) => [...prev, newScheduledTask]);
+    
+    // Open details dialog for the newly created task
+    setSelectedScheduledTask(newScheduledTask);
+    setIsTaskDetailsDialogOpen(true);
+
     const task = tasks.find(t => t.id === taskId);
     const employee = employees.find(e => e.id === employeeId);
     toast({
       title: "Task Scheduled",
-      description: `${task?.name || 'Task'} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(date), 'MMM d, yyyy')}.`
+      description: `${task?.name || 'Task'} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(date), 'MMM d, yyyy')}. Please review details.`
     });
   };
 
@@ -238,6 +244,21 @@ export default function SchedulerPage() {
     }
   };
 
+  const handleSaveScheduledTaskDetails = (taskId: string, newHours: number) => {
+    setScheduledTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId ? { ...task, hours: newHours } : task
+      )
+    );
+    setIsTaskDetailsDialogOpen(false);
+    setSelectedScheduledTask(null);
+    const updatedTask = tasks.find(t => t.id === scheduledTasks.find(st => st.id === taskId)?.taskId);
+    toast({
+      title: "Task Updated",
+      description: `Hours for task "${updatedTask?.name || 'Task'}" have been updated to ${newHours}.`,
+    });
+  };
+
   const handleOpenAssignEmployeeDialog = (taskId: string, date: Date) => {
     const task = tasks.find(t => t.id === taskId);
     setPendingTaskAssignmentData({
@@ -251,6 +272,7 @@ export default function SchedulerPage() {
   const handleConfirmEmployeeAssignment = (employeeId: string) => {
     if (pendingTaskAssignmentData) {
       handleDropTask(employeeId, pendingTaskAssignmentData.date, pendingTaskAssignmentData.taskId);
+      // Note: handleDropTask now opens the details dialog itself
       setIsAssignEmployeeDialogOpen(false);
       setPendingTaskAssignmentData(null);
     }
@@ -270,7 +292,7 @@ export default function SchedulerPage() {
   };
 
   const generateScheduleCSV = () => {
-    const headers = ["Date", "Employee ID", "Employee First Name", "Employee Last Name", "Task Name", "Task Status"];
+    const headers = ["Date", "Employee ID", "Employee First Name", "Employee Last Name", "Task Name", "Task Status", "Hours"];
     let csvContent = headers.map(header => escapeCSVField(header)).join(",") + "\n";
 
     const sortedScheduledTasks = [...scheduledTasks].sort((a, b) => {
@@ -288,7 +310,8 @@ export default function SchedulerPage() {
         employee?.firstName,
         employee?.lastName,
         task?.name,
-        st.status || 'Scheduled'
+        st.status || 'Scheduled',
+        st.hours
       ].map(field => escapeCSVField(field)).join(',');
       csvContent += row + "\n";
     });
@@ -442,10 +465,14 @@ export default function SchedulerPage() {
         />
         <ScheduledTaskDetailsDialog
           isOpen={isTaskDetailsDialogOpen}
-          onOpenChange={setIsTaskDetailsDialogOpen}
+          onOpenChange={(open) => {
+            setIsTaskDetailsDialogOpen(open);
+            if (!open) setSelectedScheduledTask(null); // Clear selection when dialog closes
+          }}
           scheduledTask={selectedScheduledTask}
           employees={employees}
           tasks={tasks}
+          onSave={handleSaveScheduledTaskDetails}
         />
         <AssignEmployeeDialog
           isOpen={isAssignEmployeeDialogOpen}
@@ -458,4 +485,3 @@ export default function SchedulerPage() {
       </div>
   );
 }
-

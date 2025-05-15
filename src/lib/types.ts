@@ -23,6 +23,7 @@ export interface ScheduledTask {
   taskId: string;
   date: string; // YYYY-MM-DD format
   status?: string; // e.g., "Scheduled", "In Progress", "Completed"
+  hours?: number; // Duration of the task in hours
 }
 
 // For task management form
