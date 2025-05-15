@@ -2,7 +2,7 @@
 'use client';
 
 import type { Task, ScheduledTask, Employee } from '@/lib/types';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -37,6 +37,11 @@ export function MonthlyView({
   const getTaskById = (taskId: string): Task | undefined => tasks.find(t => t.id === taskId);
   const getEmployeeById = (employeeId: string): Employee | undefined => employees.find(e => e.id === employeeId);
   const [draggedOverDate, setDraggedOverDate] = React.useState<string | null>(null);
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setClientToday(new Date());
+  }, []);
 
   const tasksForDay = (day: Date): ScheduledTask[] => {
     const dateStr = format(day, 'yyyy-MM-dd');
@@ -47,7 +52,6 @@ export function MonthlyView({
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>, date: Date) => {
     event.preventDefault();
-    // Check if there are active employees before allowing drop indication
     const hasActiveEmployees = employees.some(emp => emp.isActive);
     if (hasActiveEmployees) {
       setDraggedOverDate(format(date, 'yyyy-MM-dd'));
@@ -63,9 +67,13 @@ export function MonthlyView({
     setDraggedOverDate(null);
     const taskId = event.dataTransfer.getData('text/plain');
     const hasActiveEmployees = employees.some(emp => emp.isActive);
-    if (taskId && hasActiveEmployees) { // Only proceed if task and active employees exist
+    if (taskId && hasActiveEmployees) { 
       onDropTaskToCell(taskId, date);
     }
+  };
+
+  const isDayToday = (day: Date): boolean => {
+    return clientToday ? isSameDay(day, clientToday) : false;
   };
 
   const DayCell = ({ date, dayProps }: { date: Date; dayProps: any }) => {
@@ -110,7 +118,7 @@ export function MonthlyView({
           >
             <span className={cn(
                 'text-xs font-medium self-start mb-1',
-                isSameDay(date, new Date()) ? 'text-primary font-bold' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
+                isDayToday(date) ? 'text-primary font-bold' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
             )}>
               {format(date, 'd')}
             </span>
@@ -174,20 +182,20 @@ export function MonthlyView({
         <Calendar
           mode="default" 
           month={currentDate}
-          className="w-full p-0 flex-grow" // Ensure calendar takes up space
+          className="w-full p-0 flex-grow"
           components={{
             Day: (props) => <DayCell date={props.date} dayProps={props} />, 
           }}
           classNames={{
             head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", 
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", // flex-1 and w-0 for equal width
-            row: "flex w-full mt-0 border-b last:border-b-0", // flex to allow cells to stretch height
-            table: "w-full border-collapse space-y-0 h-full flex flex-col", // Make table also flex col
-            months: "p-0 flex-grow flex flex-col", // Ensure months and month take up space
-            month: "space-y-0 p-0 flex-grow flex flex-col", // Make month flex column
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", 
+            row: "flex w-full mt-0 border-b last:border-b-0", 
+            table: "w-full border-collapse space-y-0 h-full flex flex-col", 
+            months: "p-0 flex-grow flex flex-col", 
+            month: "space-y-0 p-0 flex-grow flex flex-col", 
             caption_label: "text-lg",
             caption: "relative flex justify-center pt-2 items-center border-b pb-2",
-            body: "flex-grow flex flex-col", // Make body flex column to distribute row height
+            body: "flex-grow flex flex-col", 
           }}
         />
       </CardContent>

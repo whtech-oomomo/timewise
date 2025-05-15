@@ -5,9 +5,9 @@ import type { Employee, Task, ScheduledTask } from '@/lib/types';
 import { ScheduledTaskDisplayItem } from './scheduled-task-display-item';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
-import { addDays, format, startOfWeek, isSameDay, isToday } from 'date-fns';
+import { addDays, format, startOfWeek, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface WeeklyViewProps {
   employees: Employee[]; // All employees (active and inactive for display purposes)
@@ -29,6 +29,11 @@ export function WeeklyView({
   onTaskClick,
 }: WeeklyViewProps) {
   const [draggedOverCell, setDraggedOverCell] = useState<{ employeeId: string; date: string } | null>(null);
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setClientToday(new Date());
+  }, []);
 
   const weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1; // Monday
   const weekStart = startOfWeek(currentDate, { weekStartsOn });
@@ -54,6 +59,10 @@ export function WeeklyView({
     ? employees.filter(emp => emp.id === selectedEmployeeId)
     : employees;
 
+  const isDayToday = (day: Date): boolean => {
+    return clientToday ? isSameDay(day, clientToday) : false;
+  };
+
   return (
     <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden h-full flex flex-col">
       <ScrollArea className="h-full">
@@ -66,7 +75,7 @@ export function WeeklyView({
                 key={day.toISOString()}
                 className={cn(
                   "sticky top-0 z-10 p-3 text-center font-semibold bg-muted border-b text-sm",
-                  isToday(day) ? "text-primary font-bold" : ""
+                  isDayToday(day) ? "text-primary font-bold" : ""
                 )}
               >
                 <div>{format(day, 'EEE')}</div>
@@ -99,7 +108,7 @@ export function WeeklyView({
                         isCellDraggedOver ? "bg-accent" : "bg-background",
                         employee.isActive && "hover:bg-secondary/50",
                         !employee.isActive && "bg-muted/20",
-                        isToday(day) ? (employee.isActive ? "bg-primary/5" : "bg-primary/10") : ""
+                        isDayToday(day) ? (employee.isActive ? "bg-primary/5" : "bg-primary/10") : ""
                       )}
                       onDragOver={employee.isActive ? handleDragOver : undefined}
                       onDrop={employee.isActive ? (e) => handleDrop(e, employee.id, day) : undefined}
