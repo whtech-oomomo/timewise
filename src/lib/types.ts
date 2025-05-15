@@ -15,6 +15,7 @@ export interface Task {
   name: string;
   iconName: string; // Key for mapping to LucideIcon
   colorClasses: string; // Tailwind classes for styling (e.g., "bg-blue-100 text-blue-800 border border-blue-300")
+  defaultHours?: number; // Default duration for this task type
 }
 
 export interface ScheduledTask {
@@ -31,6 +32,7 @@ export interface TaskFormData {
   name: string;
   iconName: string;
   colorClasses: string;
+  defaultHours?: number;
 }
 
 // For employee management form

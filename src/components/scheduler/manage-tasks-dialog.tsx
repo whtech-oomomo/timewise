@@ -1,7 +1,8 @@
+
 'use client';
 
 import type { Task, TaskFormData } from '@/lib/types';
-import React from 'react'; // Added React import
+import React from 'react'; 
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { availableIcons, availableColors, getTaskIcon } from '@/components/icons/task-icon-map';
-import { Trash2, Edit3, PlusCircle } from 'lucide-react';
+import { Trash2, Edit3, PlusCircle, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,6 +35,7 @@ const taskFormSchema = z.object({
   name: z.string().min(1, 'Task name is required').max(50, 'Task name is too long'),
   iconName: z.string().min(1, 'Icon is required'),
   colorClasses: z.string().min(1, 'Color is required'),
+  defaultHours: z.coerce.number().min(0.5, "Default hours must be at least 0.5").optional().default(8),
 });
 
 interface ManageTasksDialogProps {
@@ -68,6 +70,7 @@ export function ManageTasksDialog({
       name: '',
       iconName: availableIcons[0]?.name || '',
       colorClasses: availableColors[0]?.classes || '',
+      defaultHours: 8,
     },
   });
 
@@ -76,8 +79,14 @@ export function ManageTasksDialog({
       setValue('name', editingTask.name);
       setValue('iconName', editingTask.iconName);
       setValue('colorClasses', editingTask.colorClasses);
+      setValue('defaultHours', editingTask.defaultHours || 8);
     } else {
-      reset();
+      reset({
+        name: '',
+        iconName: availableIcons[0]?.name || '',
+        colorClasses: availableColors[0]?.classes || '',
+        defaultHours: 8,
+      });
     }
   }, [editingTask, reset, setValue]);
 
@@ -140,7 +149,7 @@ export function ManageTasksDialog({
                 name="iconName"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || availableIcons[0]?.name}>
                     <SelectTrigger id="iconName">
                       <SelectValue placeholder="Select an icon" />
                     </SelectTrigger>
@@ -165,7 +174,7 @@ export function ManageTasksDialog({
                 name="colorClasses"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || availableColors[0]?.classes}>
                     <SelectTrigger id="colorClasses">
                       <SelectValue placeholder="Select a color" />
                     </SelectTrigger>
@@ -184,9 +193,29 @@ export function ManageTasksDialog({
               />
               {errors.colorClasses && <p className="text-sm text-destructive">{errors.colorClasses.message}</p>}
             </div>
+            <div>
+              <Label htmlFor="defaultHours">Default Hours</Label>
+              <Controller
+                name="defaultHours"
+                control={control}
+                render={({ field }) => (
+                  <Input 
+                    id="defaultHours" 
+                    type="number" 
+                    {...field} 
+                    value={field.value ?? ''} // Handle undefined for input value
+                    onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} // Coerce to number or undefined
+                    placeholder="e.g., 8" 
+                    min="0.5"
+                    step="0.5"
+                  />
+                )}
+              />
+              {errors.defaultHours && <p className="text-sm text-destructive">{errors.defaultHours.message}</p>}
+            </div>
              <DialogFooter className="pt-4 col-span-1 md:col-span-2">
                 <Button type="submit" className="w-full md:w-auto">
-                  {editingTask ? 'Update Task' : 'Add Task'}
+                  {editingTask ? <><Edit3 className="mr-2 h-4 w-4" /> Update Task</> : <><PlusCircle className="mr-2 h-4 w-4" /> Add Task</>}
                 </Button>
                 {editingTask && (
                   <Button type="button" variant="outline" onClick={() => { setEditingTask(null); reset(); }} className="w-full md:w-auto">
@@ -198,11 +227,11 @@ export function ManageTasksDialog({
 
           {/* Right: Task List */}
           <div className="flex flex-col overflow-hidden h-full max-h-[60vh] md:max-h-none">
-            <h3 className="text-md font-semibold mb-2">Existing Tasks</h3>
+            <h3 className="text-md font-semibold mb-2">Existing Tasks ({tasks.length})</h3>
             <ScrollArea className="border rounded-md p-2 flex-grow">
               {tasks.length > 0 ? (
                 <ul className="space-y-2">
-                  {tasks.map((task) => {
+                  {tasks.slice().sort((a,b) => a.name.localeCompare(b.name)).map((task) => {
                     const IconComponent = getTaskIcon(task.iconName);
                     return (
                       <li
@@ -212,8 +241,14 @@ export function ManageTasksDialog({
                         <div className="flex items-center gap-2">
                           <IconComponent className="h-4 w-4" />
                           <span className="text-sm">{task.name}</span>
+                          {task.defaultHours !== undefined && (
+                            <div className="flex items-center text-xs opacity-75 gap-1 ml-1">
+                              <Clock className="h-3 w-3" /> 
+                              <span>{task.defaultHours}h</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(task)} className="h-7 w-7 hover:bg-opacity-50">
                             <Edit3 className="h-4 w-4" />
                           </Button>

@@ -25,9 +25,9 @@ const initialEmployees: Employee[] = [
 ];
 
 const initialTasks: Task[] = [
-  { id: 'task1', name: 'Morning Briefing', iconName: 'Sunrise', colorClasses: 'bg-yellow-100 text-yellow-700 border border-yellow-300 hover:bg-yellow-200' },
-  { id: 'task2', name: 'Client Call', iconName: 'Phone', colorClasses: 'bg-sky-100 text-sky-700 border border-sky-300 hover:bg-sky-200' },
-  { id: 'task3', name: 'Project Work', iconName: 'Briefcase', colorClasses: 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' },
+  { id: 'task1', name: 'Morning Briefing', iconName: 'Sunrise', colorClasses: 'bg-yellow-100 text-yellow-700 border border-yellow-300 hover:bg-yellow-200', defaultHours: 1 },
+  { id: 'task2', name: 'Client Call', iconName: 'Phone', colorClasses: 'bg-sky-100 text-sky-700 border border-sky-300 hover:bg-sky-200', defaultHours: 2.5 },
+  { id: 'task3', name: 'Project Work', iconName: 'Briefcase', colorClasses: 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200', defaultHours: 8 },
 ];
 
 
@@ -59,31 +59,34 @@ export default function SchedulerPage() {
   };
 
   const handleDropTask = (employeeId: string, date: string, taskId: string) => {
+    const taskDefinition = tasks.find(t => t.id === taskId);
     const newScheduledTask: ScheduledTask = {
       id: uuidv4(), 
       employeeId,
       taskId,
       date,
       status: 'Scheduled',
-      hours: 8, // Default hours
+      hours: taskDefinition?.defaultHours || 8, // Use task's default hours or fallback
     };
     setScheduledTasks((prev) => [...prev, newScheduledTask]);
     
-    // Open details dialog for the newly created task
     setSelectedScheduledTask(newScheduledTask);
     setIsTaskDetailsDialogOpen(true);
 
-    const task = tasks.find(t => t.id === taskId);
     const employee = employees.find(e => e.id === employeeId);
     toast({
       title: "Task Scheduled",
-      description: `${task?.name || 'Task'} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(date), 'MMM d, yyyy')}. Please review details.`
+      description: `${taskDefinition?.name || 'Task'} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(date), 'MMM d, yyyy')}. Please review details.`
     });
   };
 
   // Task CRUD operations
   const handleAddTask = (taskData: TaskFormData) => {
-    const newTask: Task = { ...taskData, id: uuidv4() };
+    const newTask: Task = { 
+      ...taskData, 
+      id: uuidv4(),
+      defaultHours: taskData.defaultHours || 8 // Ensure defaultHours is set
+    };
     setTasks((prev) => [...prev, newTask]);
   };
 
@@ -98,7 +101,6 @@ export default function SchedulerPage() {
 
   // Employee CRUD operations
   const handleAddEmployee = (employeeData: EmployeeFormData) => {
-    // ID uniqueness is checked in ManageEmployeesDialog before calling this for new employees
     const newEmployee: Employee = { 
       ...employeeData,
       createdAt: new Date().toISOString(),
@@ -109,7 +111,7 @@ export default function SchedulerPage() {
   const handleUpdateEmployee = (employeeId: string, employeeData: EmployeeFormData) => {
     setEmployees((prev) => 
       prev.map((emp) => 
-        emp.id === employeeId ? { ...emp, ...employeeData, id: employeeId } : emp // Ensure createdAt is preserved
+        emp.id === employeeId ? { ...emp, ...employeeData, id: employeeId } : emp
       )
     );
   };
@@ -169,7 +171,7 @@ export default function SchedulerPage() {
            toast({
               title: `Invalid Date for ${empData.id}`,
               description: `Using current date for "Created At" as "${empData.createdAtInput}" is invalid.`,
-              variant: "default", // Use default or warning, not destructive for this
+              variant: "default",
           });
         }
       }
@@ -252,10 +254,10 @@ export default function SchedulerPage() {
     );
     setIsTaskDetailsDialogOpen(false);
     setSelectedScheduledTask(null);
-    const updatedTask = tasks.find(t => t.id === scheduledTasks.find(st => st.id === taskId)?.taskId);
+    const updatedTaskDefinition = tasks.find(t => t.id === scheduledTasks.find(st => st.id === taskId)?.taskId);
     toast({
       title: "Task Updated",
-      description: `Hours for task "${updatedTask?.name || 'Task'}" have been updated to ${newHours}.`,
+      description: `Hours for task "${updatedTaskDefinition?.name || 'Task'}" have been updated to ${newHours}.`,
     });
   };
 
@@ -272,7 +274,6 @@ export default function SchedulerPage() {
   const handleConfirmEmployeeAssignment = (employeeId: string) => {
     if (pendingTaskAssignmentData) {
       handleDropTask(employeeId, pendingTaskAssignmentData.date, pendingTaskAssignmentData.taskId);
-      // Note: handleDropTask now opens the details dialog itself
       setIsAssignEmployeeDialogOpen(false);
       setPendingTaskAssignmentData(null);
     }
@@ -467,7 +468,7 @@ export default function SchedulerPage() {
           isOpen={isTaskDetailsDialogOpen}
           onOpenChange={(open) => {
             setIsTaskDetailsDialogOpen(open);
-            if (!open) setSelectedScheduledTask(null); // Clear selection when dialog closes
+            if (!open) setSelectedScheduledTask(null); 
           }}
           scheduledTask={selectedScheduledTask}
           employees={employees}
