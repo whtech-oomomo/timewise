@@ -79,7 +79,7 @@ export function WeeklyView({
                 key={day.toISOString()}
                 className={cn(
                   "sticky top-0 z-10 p-3 text-center font-semibold bg-muted border-b border-r text-sm",
-                  isDayToday(day) ? "text-primary font-bold" : ""
+                  isDayToday(day) && clientToday ? "text-primary font-bold" : ""
                 )}
               >
                 <div>{format(day, 'EEE')}</div>
@@ -102,14 +102,19 @@ export function WeeklyView({
                   );
                   const isCellDraggedOver = draggedOverCell?.employeeId === employee.id && draggedOverCell?.date === cellDateStr;
 
+                  const totalHoursForCell = tasksForCell.reduce((sum, task) => {
+                    const hours = Number(task.hours);
+                    return sum + (isNaN(hours) ? 0 : hours);
+                  }, 0);
+
                   return (
                     <div
                       key={`${employee.id}-${day.toISOString()}`}
                       className={cn(
-                        "p-2 border-b border-r min-h-[80px] transition-colors duration-150",
+                        "p-2 border-b border-r min-h-[80px] transition-colors duration-150 relative", // Added relative for positioning total hours
                         isCellDraggedOver ? "bg-accent" : "bg-background",
                         "hover:bg-secondary/50",
-                        isDayToday(day) ? "bg-primary/5" : ""
+                        isDayToday(day) && clientToday ? "bg-primary/5" : ""
                       )}
                       onDragOver={handleDragOver}
                       onDrop={(e) => { onDropTask(employee.id, cellDateStr, e); setDraggedOverCell(null); }}
@@ -117,7 +122,12 @@ export function WeeklyView({
                       onDragLeave={() => setDraggedOverCell(null)}
                       onClick={handleCellClick}
                     >
-                      <div className="space-y-1">
+                      {totalHoursForCell > 0 && (
+                        <div className="absolute top-1 right-1.5 text-xs text-muted-foreground font-medium bg-background/70 px-1.5 py-0.5 rounded-full pointer-events-none">
+                          {totalHoursForCell}h
+                        </div>
+                      )}
+                      <div className="space-y-1 pt-1"> {/* Added pt-1 to give space for total hours badge if tasks start at the very top */}
                         {tasksForCell.map((st) => {
                           const taskDetail = getTaskById(st.taskId);
                           return taskDetail ? (
@@ -128,7 +138,7 @@ export function WeeklyView({
                               onClick={(id, event) => onTaskClick(id, event)}
                               isSelected={selectedScheduledTaskIds.includes(st.id)}
                               onDragStart={(event) => onTaskDragStart(event, st.id, 'existing-scheduled-task')}
-                              tags={st.tags} // Pass tags here
+                              tags={st.tags}
                             />
                           ) : null;
                         })}
