@@ -12,16 +12,17 @@ import { format, isSameMonth, isSameDay } from 'date-fns';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge'; // Import Badge
 
 interface MonthlyViewProps {
   employees: Employee[];
-  tasks: Task[]; 
+  tasks: Task[];
   scheduledTasks: ScheduledTask[];
-  currentDate: Date; 
-  onDateClick: (date: Date) => void; 
+  currentDate: Date;
+  onDateClick: (date: Date) => void;
   selectedEmployeeId: string | null;
-  onDropTaskToCell: (newTaskId: string, date: Date) => void; 
-  onScheduledTaskItemClick: (scheduledTaskId: string, event: React.MouseEvent | React.KeyboardEvent) => void; 
+  onDropTaskToCell: (newTaskId: string, date: Date) => void;
+  onScheduledTaskItemClick: (scheduledTaskId: string, event: React.MouseEvent | React.KeyboardEvent) => void;
   selectedScheduledTaskIds: string[];
   onTaskDragStart: (event: React.DragEvent<HTMLDivElement>, scheduledTaskId: string, type: 'existing-scheduled-task') => void;
   onMoveExistingTasksInMonthlyView: (draggedScheduledTaskId: string, targetDateString: string) => void;
@@ -40,7 +41,7 @@ export function MonthlyView({
   onTaskDragStart,
   onMoveExistingTasksInMonthlyView,
 }: MonthlyViewProps) {
-  
+
   const getTaskById = (taskId: string): Task | undefined => tasks.find(t => t.id === taskId);
   const getEmployeeById = (employeeId: string): Employee | undefined => employees.find(e => e.id === employeeId);
   const [draggedOverDate, setDraggedOverDate] = React.useState<string | null>(null);
@@ -83,36 +84,22 @@ export function MonthlyView({
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, date: Date) => {
     event.preventDefault();
     setDraggedOverDate(null);
-    
+
     let draggedDataJSON: string | null = null;
     try {
       draggedDataJSON = event.dataTransfer.getData('application/json');
     } catch (e) {
-      // This can happen if only text/plain was set
+       console.warn("Drag data 'application/json' not found or invalid.", e);
     }
 
     if (!draggedDataJSON) {
-        const plainData = event.dataTransfer.getData('text/plain'); 
-        // Check if plainData could be a task ID from an older drag source or simple text drop
-        if (tasks.some(t => t.id === plainData) || scheduledTasks.some(st => st.id === plainData)) {
-            // We can't be sure if it's a new task or existing one without type info,
-            // so we could potentially try to infer or show a generic error.
-            // For now, let's assume JSON is required for proper typed drops.
-             toast({
-                title: "Drag Error",
-                description: "Task data is in an unrecognized format. Please drag tasks from the sidebar or within the calendar.",
-                variant: "destructive",
-            });
-        } else {
-            toast({
-                title: "Drag Error",
-                description: "Could not retrieve task data from drag operation.",
-                variant: "destructive",
-            });
-        }
+        toast({
+            title: "Drag Error",
+            description: "Task data could not be retrieved. Please use tasks from the sidebar or within the calendar.",
+            variant: "destructive",
+        });
         return;
     }
-
 
     let data: { type: string; id: string };
     try {
@@ -126,11 +113,11 @@ export function MonthlyView({
       });
       return;
     }
-  
+
     if (data.type === 'new-task') {
       const hasActiveEmployees = employees.some(emp => emp.isActive);
       if (hasActiveEmployees) {
-        onDropTaskToCell(data.id, date); // data.id is the task definition ID
+        onDropTaskToCell(data.id, date);
       } else {
          toast({
             title: "Cannot Assign Task",
@@ -155,7 +142,7 @@ export function MonthlyView({
   };
 
   const DayCell = ({ date, dayProps }: { date: Date; dayProps: any }) => {
-    const dayScheduledTasks = tasksForDay(date); 
+    const dayScheduledTasks = tasksForDay(date);
     const isCurrentMonth = isSameMonth(date, currentDate);
     const dateStr = format(date, 'yyyy-MM-dd');
     const isCellDraggedOver = draggedOverDate === dateStr;
@@ -165,7 +152,7 @@ export function MonthlyView({
         <PopoverTrigger asChild>
           <div
             className={cn(
-              'h-full min-h-[7rem] p-1.5 flex flex-col', // Removed 'border border-border'
+              'h-full min-h-[7rem] p-1.5 flex flex-col items-stretch', // Removed explicit border
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'relative',
               isCurrentMonth ? 'bg-background' : 'bg-muted/40',
@@ -173,7 +160,7 @@ export function MonthlyView({
               'transition-colors duration-150'
             )}
             onClick={(e) => {
-                if (e.target === e.currentTarget || 
+                if (e.target === e.currentTarget ||
                     ((e.target as HTMLElement).tagName === 'SPAN' && (e.target as HTMLElement).parentElement === e.currentTarget)) {
                     onDateClick(date);
                 }
@@ -183,10 +170,10 @@ export function MonthlyView({
             onDrop={(e) => handleDrop(e, date)}
             role="button"
             aria-label={`View tasks for ${format(date, "MMMM d, yyyy")}, or click to switch to weekly view for this day.`}
-            tabIndex={0} 
-            onKeyDown={(e) => { 
-              if ((e.key === 'Enter' || e.key === ' ') && 
-                  (e.target === e.currentTarget || 
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ' ') &&
+                  (e.target === e.currentTarget ||
                   ((e.target as HTMLElement).tagName === 'SPAN' && (e.target as HTMLElement).parentElement === e.currentTarget))) {
                 onDateClick(date);
               }
@@ -199,8 +186,8 @@ export function MonthlyView({
               {format(date, 'd')}
             </span>
             {dayScheduledTasks.length > 0 && (
-              <ScrollArea className="pr-1 flex-1"> 
-                <div className="space-y-0.5"> 
+              <ScrollArea className="pr-1 flex-1">
+                <div className="space-y-0.5">
                   {dayScheduledTasks.map(st => {
                     const taskDetail = getTaskById(st.taskId);
                     const employeeDetail = getEmployeeById(st.employeeId);
@@ -211,13 +198,14 @@ export function MonthlyView({
                         task={taskDetail}
                         scheduledTaskId={st.id}
                         employeeName={employeeDetail ? `${employeeDetail.firstName} ${employeeDetail.lastName}` : undefined}
-                        onClick={(id, event) => { 
-                           event.stopPropagation(); // Prevent day cell click
+                        onClick={(id, event) => {
+                           event.stopPropagation();
                            onScheduledTaskItemClick(id, event);
                         }}
                         isCompact={true}
                         isSelected={selectedScheduledTaskIds.includes(st.id)}
                         onDragStart={(event) => onTaskDragStart(event, st.id, 'existing-scheduled-task')}
+                        tags={st.tags} // Pass tags, ScheduledTaskDisplayItem will handle not showing them in compact mode
                       />
                     );
                   })}
@@ -232,7 +220,7 @@ export function MonthlyView({
               <p className="text-sm font-semibold">{format(date, "MMMM d, yyyy")}</p>
             </div>
             <ScrollArea className="max-h-60">
-            <div className="p-2 space-y-1">
+            <div className="p-2 space-y-1.5"> {/* Increased space-y slightly */}
               {dayScheduledTasks.map(st => {
                  const taskDetail = getTaskById(st.taskId);
                  const employeeDetail = getEmployeeById(st.employeeId);
@@ -240,11 +228,22 @@ export function MonthlyView({
                  const employeeFullName = employeeDetail ? `${employeeDetail.firstName} ${employeeDetail.lastName}` : '';
                  const Icon = getTaskIcon(taskDetail.iconName);
                  return (
-                   <div key={st.id} className={`text-xs p-1 rounded-sm ${taskDetail.colorClasses} flex items-start gap-1.5`}>
-                      <Icon className="w-3 h-3 shrink-0 mt-0.5"/>
-                      <span className="whitespace-normal break-words">
-                        {employeeFullName ? `${employeeFullName}: ` : ''}{taskDetail.name}
-                      </span>
+                   <div key={st.id} className={`text-xs p-1.5 rounded ${taskDetail.colorClasses} flex flex-col items-start gap-0.5`}> {/* flex-col */}
+                      <div className="flex items-start gap-1.5">
+                        <Icon className="w-3 h-3 shrink-0 mt-0.5"/>
+                        <span className="whitespace-normal break-words">
+                          {employeeFullName ? `${employeeFullName}: ` : ''}{taskDetail.name}
+                        </span>
+                      </div>
+                      {st.tags && st.tags.length > 0 && (
+                        <div className="mt-0.5 pl-[calc(0.375rem+0.375rem)] flex flex-wrap gap-0.5"> {/* Indent and wrap tags */}
+                          {st.tags.map(tag => (
+                            <Badge key={tag} variant="secondary" className="text-[9px] px-1 py-0 leading-tight bg-opacity-70">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                  );
               })}
@@ -260,22 +259,22 @@ export function MonthlyView({
     <Card className="flex-1 rounded-b-lg shadow-md overflow-hidden h-full flex flex-col">
       <CardContent className="p-0 h-full flex flex-col">
         <Calendar
-          mode="default" 
+          mode="default"
           month={currentDate}
           className="w-full p-0 flex-grow"
           components={{
-            Day: (props) => <DayCell date={props.date} dayProps={props} />, 
+            Day: (props) => <DayCell date={props.date} dayProps={props} />,
           }}
           classNames={{
-            head_cell: "h-full w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b border-r text-center", 
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative",
-            row: "flex w-full mt-0 border-b last:border-b-0", 
-            table: "w-full border-collapse space-y-0 h-full flex flex-col", 
-            months: "p-0 flex-grow flex flex-col", 
-            month: "space-y-0 p-0 flex-grow flex flex-col", 
+            head_cell: "h-full w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b border-r text-center",
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative h-full", // Added h-full
+            row: "flex w-full mt-0 border-b last:border-b-0 items-stretch", // Added items-stretch
+            table: "w-full border-collapse space-y-0 h-full flex flex-col",
+            months: "p-0 flex-grow flex flex-col",
+            month: "space-y-0 p-0 flex-grow flex flex-col",
             caption_label: "text-lg",
             caption: "relative flex justify-center pt-2 items-center border-b pb-2",
-            body: "flex-grow flex flex-col h-full", 
+            body: "flex-grow flex flex-col h-full",
           }}
         />
       </CardContent>

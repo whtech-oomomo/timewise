@@ -53,7 +53,6 @@ export function WeeklyView({
   };
 
   const handleCellClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Check if the click target is the cell itself and not a task item within it
     if ((e.target as HTMLElement).getAttribute('data-is-task-item') !== 'true' && e.target === e.currentTarget) {
       onClearSelections();
     }
@@ -129,6 +128,7 @@ export function WeeklyView({
                               onClick={(id, event) => onTaskClick(id, event)}
                               isSelected={selectedScheduledTaskIds.includes(st.id)}
                               onDragStart={(event) => onTaskDragStart(event, st.id, 'existing-scheduled-task')}
+                              tags={st.tags} // Pass tags here
                             />
                           ) : null;
                         })}
@@ -138,15 +138,19 @@ export function WeeklyView({
                 })}
               </React.Fragment>
             ))}
-            {/* Conditional rendering for empty states */}
             {employees.length === 0 && (
               <div className="col-span-8 p-6 text-center text-muted-foreground">
                   No employees have been added yet. Click "Manage Employees" to add them.
               </div>
             )}
-            {employees.length > 0 && employeesToRender.length === 0 && (
+            {activeEmployees.length > 0 && employeesToRender.length === 0 && (
               <div className="col-span-8 p-6 text-center text-muted-foreground">
                   No active employees match the current filter criteria.
+              </div>
+            )}
+             {employees.length > 0 && activeEmployees.length === 0 && (
+              <div className="col-span-8 p-6 text-center text-muted-foreground">
+                  There are no active employees to display.
               </div>
             )}
           </div>
@@ -155,4 +159,3 @@ export function WeeklyView({
     </Card>
   );
 }
-
