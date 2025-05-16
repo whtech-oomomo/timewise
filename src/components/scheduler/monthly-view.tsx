@@ -266,15 +266,15 @@ export function MonthlyView({
             Day: (props) => <DayCell date={props.date} dayProps={props} />,
           }}
           classNames={{
-            head_cell: "h-full w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b border-r text-center",
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative h-full", // Added h-full
+            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b border-r text-center",
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative", // Added h-full
             row: "flex w-full mt-0 border-b last:border-b-0 items-stretch", // Added items-stretch
-            table: "w-full border-collapse space-y-0 h-full flex flex-col",
+            table: "w-full border-collapse space-y-0 flex flex-col",
             months: "p-0 flex-grow flex flex-col",
             month: "space-y-0 p-0 flex-grow flex flex-col",
             caption_label: "text-lg",
             caption: "relative flex justify-center pt-2 items-center border-b pb-2",
-            body: "flex-grow flex flex-col h-full",
+            body: "flex-grow flex flex-col",
           }}
         />
       </CardContent>
