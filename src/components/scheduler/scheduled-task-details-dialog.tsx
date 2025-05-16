@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { ScheduledTask, Employee, Task } from '@/lib/types';
@@ -25,7 +24,7 @@ interface ScheduledTaskDetailsDialogProps {
   scheduledTask: ScheduledTask | null;
   employees: Employee[];
   tasks: Task[];
-  onSave?: (taskId: string, newHours: number) => void;
+  onSave?: (taskId: string, newHours: number, newTags: string[]) => void;
   onDelete?: (scheduledTaskId: string) => void;
 }
 
@@ -39,12 +38,17 @@ export function ScheduledTaskDetailsDialog({
   onDelete,
 }: ScheduledTaskDetailsDialogProps) {
   const [editableHours, setEditableHours] = useState<string>((scheduledTask?.hours || 8).toString());
+  const [editableTagsString, setEditableTagsString] = useState<string>((scheduledTask?.tags || []).join(', '));
+
 
   useEffect(() => {
     if (scheduledTask) {
       setEditableHours((scheduledTask.hours || 8).toString());
+      setEditableTagsString((scheduledTask.tags || []).join(', '));
     } else {
+      // Reset when no task is selected (dialog closed or task cleared)
       setEditableHours("8"); 
+      setEditableTagsString("");
     }
   }, [scheduledTask]);
 
@@ -58,12 +62,14 @@ export function ScheduledTaskDetailsDialog({
 
   const handleSaveClick = () => {
     if (onSave && scheduledTask) {
-      const hours = parseFloat(editableHours); // Use parseFloat for decimals
-      if (!isNaN(hours) && hours >= 0.5) { // Ensure hours are valid
-        onSave(scheduledTask.id, hours);
+      const hours = parseFloat(editableHours);
+      const tags = editableTagsString.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+      if (!isNaN(hours) && hours >= 0.5) { 
+        onSave(scheduledTask.id, hours, tags);
       } else {
         // Optionally, add a toast here for invalid hours input
         console.error("Invalid hours input. Must be at least 0.5.");
+        // Consider not closing the dialog or showing an error message within it.
       }
     }
   };
@@ -76,6 +82,10 @@ export function ScheduledTaskDetailsDialog({
 
   const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditableHours(e.target.value);
+  };
+
+  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditableTagsString(e.target.value);
   };
 
 
@@ -143,6 +153,25 @@ export function ScheduledTaskDetailsDialog({
             )}
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="taskTags" className="text-right">
+              Tags
+            </Label>
+            {onSave ? (
+              <Input
+                id="taskTags"
+                type="text"
+                value={editableTagsString}
+                onChange={handleTagsChange}
+                className="col-span-3"
+                placeholder="e.g., urgent, follow-up"
+              />
+            ) : (
+              <div className="col-span-3 text-sm p-2 bg-muted rounded-md">
+                {(scheduledTask.tags && scheduledTask.tags.length > 0) ? scheduledTask.tags.join(', ') : 'No tags'}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="taskStatusDisplay" className="text-right">
               Status
             </Label>
@@ -175,4 +204,3 @@ export function ScheduledTaskDetailsDialog({
     </Dialog>
   );
 }
-

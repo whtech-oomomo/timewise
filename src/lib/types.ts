@@ -25,6 +25,7 @@ export interface ScheduledTask {
   date: string; // YYYY-MM-DD format
   status?: string; // e.g., "Scheduled", "In Progress", "Completed"
   hours?: number; // Duration of the task in hours
+  tags?: string[]; // Array of tag names
 }
 
 // For task management form
@@ -61,4 +62,3 @@ export interface PendingTaskAssignment {
   date: string; // YYYY-MM-DD format
   taskName?: string; // For display in the assignment dialog
 }
-
