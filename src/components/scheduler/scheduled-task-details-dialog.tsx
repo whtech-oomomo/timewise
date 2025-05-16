@@ -2,7 +2,7 @@
 'use client';
 
 import type { ScheduledTask, Employee, Task } from '@/lib/types';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Trash2, X as XIcon } from 'lucide-react'; // Added XIcon for tag removal
+import { Trash2, X as XIcon } from 'lucide-react'; // Removed Check icon, not used in this version
+
+// Removed Popover and Command imports
+// import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+// import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+// import { cn } from '@/lib/utils'; // cn might not be needed if complex styling is removed
 
 interface ScheduledTaskDetailsDialogProps {
   isOpen: boolean;
@@ -26,6 +31,7 @@ interface ScheduledTaskDetailsDialogProps {
   tasks: Task[];
   onSave?: (taskId: string, newHours: number, newTags: string[]) => void;
   onDelete?: (scheduledTaskId: string) => void;
+  // allUniqueTags prop is removed as this version doesn't use it
 }
 
 export function ScheduledTaskDetailsDialog({
@@ -39,18 +45,18 @@ export function ScheduledTaskDetailsDialog({
 }: ScheduledTaskDetailsDialogProps) {
   const [editableHours, setEditableHours] = useState<string>((scheduledTask?.hours || 8).toString());
   const [currentTags, setCurrentTags] = useState<string[]>([]);
-  const [newTagInput, setNewTagInput] = useState<string>('');
+  const [tagInputValue, setTagInputValue] = useState('');
 
   useEffect(() => {
     if (scheduledTask) {
       setEditableHours((scheduledTask.hours || 8).toString());
       setCurrentTags(scheduledTask.tags || []);
     } else {
-      setEditableHours("8"); 
+      setEditableHours("8");
       setCurrentTags([]);
     }
-    setNewTagInput(''); // Reset new tag input when task changes or dialog closes
-  }, [scheduledTask, isOpen]); // Also depend on isOpen to reset when dialog reopens with same task
+    setTagInputValue(''); // Reset tag input when task changes or dialog closes/opens
+  }, [scheduledTask, isOpen]);
 
   if (!scheduledTask) {
     return null;
@@ -63,13 +69,14 @@ export function ScheduledTaskDetailsDialog({
   const handleSaveClick = () => {
     if (onSave && scheduledTask) {
       const hours = parseFloat(editableHours);
-      // Ensure any pending new tag is added if not empty
-      const finalTags = newTagInput.trim() 
-        ? [...currentTags, newTagInput.trim()].filter((tag, index, self) => tag && self.indexOf(tag) === index) // Add and deduplicate
-        : [...currentTags]; // Deduplicate existing if any were added weirdly
+      let finalTags = [...currentTags];
+      if (tagInputValue.trim() && !finalTags.includes(tagInputValue.trim())) {
+        finalTags.push(tagInputValue.trim());
+      }
+      finalTags = finalTags.filter((tag, index, self) => tag && self.indexOf(tag) === index); // Deduplicate just in case
 
-      if (!isNaN(hours) && hours >= 0.5) { 
-        onSave(scheduledTask.id, hours, finalTags.filter(tag => tag)); // Filter out any empty tags just in case
+      if (!isNaN(hours) && hours >= 0.5) {
+        onSave(scheduledTask.id, hours, finalTags);
       } else {
         console.error("Invalid hours input. Must be at least 0.5.");
       }
@@ -86,22 +93,18 @@ export function ScheduledTaskDetailsDialog({
     setEditableHours(e.target.value);
   };
 
-  const handleNewTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewTagInput(e.target.value);
-  };
-
-  const handleAddNewTag = () => {
-    const newTag = newTagInput.trim();
+  const handleAddTag = () => {
+    const newTag = tagInputValue.trim();
     if (newTag && !currentTags.includes(newTag)) {
       setCurrentTags(prevTags => [...prevTags, newTag]);
     }
-    setNewTagInput(''); // Clear input after adding
+    setTagInputValue(''); // Clear input after adding
   };
 
-  const handleNewTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault(); // Prevent form submission on Enter / comma in input
-      handleAddNewTag();
+      e.preventDefault();
+      handleAddTag();
     }
   };
 
@@ -110,12 +113,7 @@ export function ScheduledTaskDetailsDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) { // Reset input if dialog is closed
-        setNewTagInput('');
-      }
-      onOpenChange(open);
-    }}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Task Details</DialogTitle>
@@ -124,7 +122,8 @@ export function ScheduledTaskDetailsDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
+          {/* ... other fields like Scheduled ID, Task Name, Employee, Date ... */}
+           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="taskIdDisplay" className="text-right whitespace-nowrap">
               Scheduled ID
             </Label>
@@ -168,7 +167,7 @@ export function ScheduledTaskDetailsDialog({
                 value={editableHours}
                 onChange={handleHoursChange}
                 className="col-span-3"
-                min="0.5" 
+                min="0.5"
                 step="0.5"
               />
             ) : (
@@ -178,14 +177,14 @@ export function ScheduledTaskDetailsDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-4 items-start gap-4"> {/* Changed to items-start for better label alignment with multi-line tags */}
-            <Label htmlFor="taskTags" className="text-right pt-2"> {/* Added pt-2 for alignment */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="taskTagsInput" className="text-right pt-2">
               Tags
             </Label>
             <div className="col-span-3 space-y-2">
               {onSave ? (
                 <>
-                  <div className="flex flex-wrap gap-1 mb-2 empty:mb-0">
+                  <div className="flex flex-wrap gap-1 mb-2 empty:mb-0 min-h-[24px]">
                     {currentTags.map(tag => (
                       <Badge key={tag} variant="secondary" className="flex items-center gap-1">
                         {tag}
@@ -193,28 +192,30 @@ export function ScheduledTaskDetailsDialog({
                           type="button"
                           aria-label={`Remove tag ${tag}`}
                           onClick={() => handleRemoveTag(tag)}
-                          className="rounded-full hover:bg-muted-foreground/20 p-0.5"
+                          className="rounded-full hover:bg-muted-foreground/20 p-0.5 ml-1"
                         >
                           <XIcon className="h-3 w-3" />
                         </button>
                       </Badge>
                     ))}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <Input
-                      id="taskTags"
+                      id="taskTagsInput"
                       type="text"
-                      value={newTagInput}
-                      onChange={handleNewTagInputChange}
-                      onKeyDown={handleNewTagKeyDown}
-                      placeholder="Add a tag and press Enter"
+                      value={tagInputValue}
+                      onChange={(e) => setTagInputValue(e.target.value)}
+                      onKeyDown={handleTagInputKeyDown}
+                      placeholder="Add tag and press Enter or ,"
                       className="flex-grow"
                     />
-                    <Button type="button" variant="outline" onClick={handleAddNewTag} disabled={!newTagInput.trim()}>Add</Button>
+                    <Button type="button" onClick={handleAddTag} variant="outline" size="sm">
+                      Add
+                    </Button>
                   </div>
                 </>
               ) : (
-                <div className="text-sm p-2 bg-muted rounded-md min-h-[40px]"> {/* Ensure some height */}
+                <div className="text-sm p-2 bg-muted rounded-md min-h-[40px]">
                   {(currentTags && currentTags.length > 0) ? (
                     <div className="flex flex-wrap gap-1">
                       {currentTags.map(tag => (
@@ -246,7 +247,7 @@ export function ScheduledTaskDetailsDialog({
             </Button>
           )}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => { onOpenChange(false); } }>
                 {onSave ? "Cancel" : "Close"}
             </Button>
             {onSave && (
@@ -260,5 +261,4 @@ export function ScheduledTaskDetailsDialog({
     </Dialog>
   );
 }
-
     

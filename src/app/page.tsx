@@ -56,6 +56,15 @@ export default function SchedulerPage() {
 
   const activeEmployees = useMemo(() => employees.filter(emp => emp.isActive), [employees]);
 
+  // Removed allUniqueTags calculation as the dialog version it was for is being reverted.
+  // const allUniqueTags = useMemo(() => {
+  //   const tagSet = new Set<string>();
+  //   scheduledTasks.forEach(st => {
+  //       (st.tags || []).forEach(tag => tagSet.add(tag));
+  //   });
+  //   return Array.from(tagSet).sort();
+  // }, [scheduledTasks]);
+
   const handleDragTaskStart = (event: React.DragEvent<HTMLDivElement>, itemId: string, type: 'new-task' | 'existing-scheduled-task' = 'new-task') => {
     const dragData = JSON.stringify({ type, id: itemId });
     event.dataTransfer.setData('application/json', dragData);
@@ -71,14 +80,14 @@ export default function SchedulerPage() {
     }
 
     if (!draggedDataJSON) {
-        // Fallback for older drag data or if JSON wasn't set for some reason.
-        // This part can be removed if all drag sources are confirmed to set 'application/json'.
         const plainData = event.dataTransfer.getData('text/plain'); 
-        if (plainData && tasks.some(t => t.id === plainData)) { // Check if it's a known task ID
+        if (plainData && tasks.some(t => t.id === plainData)) {
             draggedDataJSON = JSON.stringify({ type: 'new-task', id: plainData });
+        } else if (plainData && scheduledTasks.some(st => st.id === plainData)) { // Check for existing task ID for robustness
+            draggedDataJSON = JSON.stringify({ type: 'existing-scheduled-task', id: plainData });
         } else {
-            console.error("No valid task ID found in drag data.");
-            toast({ title: "Drag Error", description: "Could not retrieve task data.", variant: "destructive" });
+            console.error("No valid task ID found in drag data (plain text).");
+            toast({ title: "Drag Error", description: "Could not retrieve task data from drag operation.", variant: "destructive" });
             return;
         }
     }
@@ -111,8 +120,8 @@ export default function SchedulerPage() {
         tags: [],
       };
       setScheduledTasks((prev) => [...prev, newScheduledTask]);
-      setSelectedScheduledTask(newScheduledTask); // Set for dialog
-      setIsTaskDetailsDialogOpen(true); // Open dialog
+      setSelectedScheduledTask(newScheduledTask); 
+      setIsTaskDetailsDialogOpen(true); 
   
       const employee = employees.find(e => e.id === targetEmployeeId);
       toast({
@@ -120,7 +129,6 @@ export default function SchedulerPage() {
         description: `${taskDefinition.name} assigned to ${employee?.firstName} ${employee?.lastName} on ${format(new Date(targetDate), 'MMM d, yyyy')}. Please review details.`
       });
     } else if (type === 'existing-scheduled-task') {
-      // Identify which tasks to move: if the dragged one is part of a selection, move all selected. Otherwise, move only the dragged one.
       const tasksToMoveIds = selectedScheduledTaskIds.length > 0 && selectedScheduledTaskIds.includes(draggedItemId)
         ? selectedScheduledTaskIds
         : [draggedItemId];
@@ -131,7 +139,7 @@ export default function SchedulerPage() {
             return {
               ...st,
               employeeId: targetEmployeeId,
-              date: targetDate, // Update date as well, as it's a weekly view drop
+              date: targetDate, 
             };
           }
           return st;
@@ -142,7 +150,7 @@ export default function SchedulerPage() {
         title: `${tasksToMoveIds.length} Task(s) Moved`,
         description: `Moved to ${employee?.firstName || 'employee'} on ${format(new Date(targetDate), 'MMM d, yyyy')}.`,
       });
-      setSelectedScheduledTaskIds([]); // Clear selection after move
+      setSelectedScheduledTaskIds([]); 
     }
   };
 
@@ -156,7 +164,7 @@ export default function SchedulerPage() {
         if (tasksToMoveIds.includes(st.id)) {
           return {
             ...st,
-            date: targetDateString, // Only update the date
+            date: targetDateString, 
           };
         }
         return st;
@@ -190,14 +198,13 @@ export default function SchedulerPage() {
 
   const handleDeleteTask = (taskId: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    // Also remove any scheduled instances of this task definition
     setScheduledTasks((prev) => prev.filter(st => st.taskId !== taskId));
   };
 
   // Employee CRUD operations
   const handleAddEmployee = (employeeData: EmployeeFormData) => {
     const newEmployee: Employee = { 
-      ...employeeData, // id is now included from form
+      ...employeeData, 
       createdAt: new Date().toISOString(),
     };
     setEmployees((prev) => [...prev, newEmployee]);
@@ -216,16 +223,13 @@ export default function SchedulerPage() {
     if (!employee) return;
 
     setEmployees((prev) => prev.filter((emp) => emp.id !== employeeIdToDelete));
-    // Remove scheduled tasks for the deleted employee
     setScheduledTasks((prev) => prev.filter((st) => st.employeeId !== employeeIdToDelete));
     
-    // If the deleted employee was the one selected for filtering, reset the filter
     if (selectedEmployeeId === employeeIdToDelete) {
       setSelectedEmployeeId(null); 
     }
-    // Clear any selections that might belong to the deleted employee's tasks
     setSelectedScheduledTaskIds(prevIds => prevIds.filter(id => {
-        const task = scheduledTasks.find(st => st.id === id); // Check against original list before it's updated
+        const task = scheduledTasks.find(st => st.id === id); 
         return task && task.employeeId !== employeeIdToDelete;
     }));
 
@@ -245,7 +249,6 @@ export default function SchedulerPage() {
     const newEmployeesToAdd: Employee[] = [];
   
     importedData.forEach((empData, index) => {
-      // Basic validation
       if (!empData.id || !empData.firstName || !empData.lastName || !empData.warehouseCode) {
         toast({
           title: `Import Error for row ${index + 1}`,
@@ -256,25 +259,22 @@ export default function SchedulerPage() {
         return;
       }
       
-      // Check for duplicates
       if (employees.some(e => e.id === empData.id)) {
         toast({
           title: "Skipped Duplicate",
           description: `Employee ID "${empData.id}" (${empData.firstName} ${empData.lastName}) already exists.`,
-          variant: "default", // Or "info" if you add that variant
+          variant: "default", 
         });
         skippedCount++;
         return;
       }
   
-      // Handle date parsing for createdAt
-      let createdAt = new Date().toISOString(); // Default to now
+      let createdAt = new Date().toISOString(); 
       if (empData.createdAtInput) {
         const parsedDate = new Date(empData.createdAtInput);
         if (isValid(parsedDate)) {
           createdAt = parsedDate.toISOString();
         } else {
-           // Optionally notify user about invalid date format and using default
            toast({
               title: `Invalid Date for ${empData.id}`,
               description: `Using current date for "Created At" as "${empData.createdAtInput}" is invalid.`,
@@ -288,7 +288,7 @@ export default function SchedulerPage() {
         firstName: empData.firstName,
         lastName: empData.lastName,
         warehouseCode: empData.warehouseCode,
-        isActive: typeof empData.isActive === 'boolean' ? empData.isActive : true, // Default to true if not specified or invalid
+        isActive: typeof empData.isActive === 'boolean' ? empData.isActive : true, 
         createdAt: createdAt,
       };
       newEmployeesToAdd.push(newEmployee);
@@ -343,7 +343,7 @@ export default function SchedulerPage() {
   const handleMonthlyDateClick = (date: Date) => {
     setCurrentWeekDate(startOfWeek(date, { weekStartsOn: 1 }));
     setCurrentView('weekly');
-    setSelectedScheduledTaskIds([]); // Clear selections when changing view context
+    setSelectedScheduledTaskIds([]); 
   };
 
   const handleScheduledTaskClick = (clickedScheduledTaskId: string, event?: React.MouseEvent | React.KeyboardEvent) => {
@@ -355,19 +355,16 @@ export default function SchedulerPage() {
           ? prevSelectedIds.filter(id => id !== clickedScheduledTaskId)
           : [...prevSelectedIds, clickedScheduledTaskId]
       );
-      // When multi-selecting, don't open the dialog immediately.
-      // Clear selectedScheduledTask to ensure dialog doesn't persist with old data if it was open.
       setSelectedScheduledTask(null); 
       setIsTaskDetailsDialogOpen(false);
     } else {
-      // Single click: select only this task and open its details.
       setSelectedScheduledTaskIds([clickedScheduledTaskId]);
       const taskToView = scheduledTasks.find(st => st.id === clickedScheduledTaskId);
       if (taskToView) {
         setSelectedScheduledTask(taskToView);
         setIsTaskDetailsDialogOpen(true);
       } else {
-        setSelectedScheduledTask(null); // Should not happen if ID is valid
+        setSelectedScheduledTask(null); 
         setIsTaskDetailsDialogOpen(false);
       }
     }
@@ -380,7 +377,7 @@ export default function SchedulerPage() {
       )
     );
     setIsTaskDetailsDialogOpen(false);
-    setSelectedScheduledTask(null); // Clear selected task after saving
+    setSelectedScheduledTask(null); 
     const scheduledTaskInfo = scheduledTasks.find(st => st.id === taskId);
     const updatedTaskDefinition = tasks.find(t => t.id === scheduledTaskInfo?.taskId);
     toast({
@@ -397,7 +394,7 @@ export default function SchedulerPage() {
     const employee = employees.find(e => e.id === taskToDelete.employeeId);
 
     setScheduledTasks(prevTasks => prevTasks.filter(task => task.id !== scheduledTaskId));
-    setSelectedScheduledTaskIds(prevIds => prevIds.filter(id => id !== scheduledTaskId)); // Also remove from selection
+    setSelectedScheduledTaskIds(prevIds => prevIds.filter(id => id !== scheduledTaskId)); 
     setIsTaskDetailsDialogOpen(false);
     setSelectedScheduledTask(null);
     toast({
@@ -408,8 +405,7 @@ export default function SchedulerPage() {
   };
 
   const handleOpenAssignEmployeeDialog = (taskId: string, date: Date) => {
-    // This function is called when a NEW task is dropped on a monthly cell
-    const task = tasks.find(t => t.id === taskId); // taskId here is the task definition ID
+    const task = tasks.find(t => t.id === taskId); 
     setPendingTaskAssignmentData({
       taskId,
       date: format(date, 'yyyy-MM-dd'),
@@ -420,7 +416,6 @@ export default function SchedulerPage() {
 
   const handleConfirmEmployeeAssignment = (employeeId: string) => {
     if (pendingTaskAssignmentData) {
-      // Simulate a drag event for handleDropTask
       const dummyDragEvent = {
         dataTransfer: {
           getData: (formatType: string) => {
@@ -441,24 +436,21 @@ export default function SchedulerPage() {
   
   const activeDate = currentView === 'weekly' ? currentWeekDate : currentMonthDate;
 
-  // Helper for CSV export
   const escapeCSVField = (field: string | number | boolean | undefined | null): string => {
     if (field === undefined || field === null) {
-      return '""'; // Represent null/undefined as empty quoted string
+      return '""'; 
     }
     const strField = String(field);
-    // Quote if it contains comma, double-quote, newline, or carriage return
     if (strField.includes(',') || strField.includes('"') || strField.includes('\n') || strField.includes('\r')) {
-      return `"${strField.replace(/"/g, '""')}"`; // Double up existing double quotes
+      return `"${strField.replace(/"/g, '""')}"`; 
     }
     return strField;
   };
 
   const generateScheduleCSV = () => {
-    const headers = ["Date", "Employee ID", "Employee First Name", "Employee Last Name", "Task Name", "Task Status", "Hours"];
+    const headers = ["Date", "Employee ID", "Employee First Name", "Employee Last Name", "Task Name", "Task Status", "Hours", "Tags"];
     let csvContent = headers.map(header => escapeCSVField(header)).join(",") + "\n";
 
-    // Sort tasks by date, then by employee ID for consistent export
     const sortedScheduledTasks = [...scheduledTasks].sort((a, b) => {
       const dateComparison = a.date.localeCompare(b.date);
       if (dateComparison !== 0) return dateComparison;
@@ -469,13 +461,14 @@ export default function SchedulerPage() {
       const employee = employees.find(e => e.id === st.employeeId);
       const task = tasks.find(t => t.id === st.taskId);
       const row = [
-        st.date, // Already YYYY-MM-DD
+        st.date, 
         employee?.id,
         employee?.firstName,
         employee?.lastName,
         task?.name,
-        st.status || 'Scheduled', // Default if status is undefined
-        st.hours
+        st.status || 'Scheduled', 
+        st.hours,
+        (st.tags || []).join(' | ') // Join tags with a pipe separator
       ].map(field => escapeCSVField(field)).join(',');
       csvContent += row + "\n";
     });
@@ -495,7 +488,7 @@ export default function SchedulerPage() {
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
 
-    if (link.download !== undefined) { // Check if browser supports download attribute
+    if (link.download !== undefined) { 
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
       const fileName = `schedule_export_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`;
@@ -504,10 +497,9 @@ export default function SchedulerPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url); // Free up memory
+      URL.revokeObjectURL(url); 
       toast({ title: "Schedule Exported", description: `Successfully exported to ${fileName}.` });
     } else {
-      // Fallback or error for browsers that don't support the download attribute
       toast({ title: "Export Failed", description: "Your browser doesn't support this feature.", variant: "destructive" });
     }
   };
@@ -525,7 +517,6 @@ export default function SchedulerPage() {
         emp.lastName,
         emp.warehouseCode,
         emp.isActive ? 'Active' : 'Inactive',
-        // Ensure date is valid before formatting
         isValid(new Date(emp.createdAt)) ? format(new Date(emp.createdAt), 'yyyy-MM-dd HH:mm:ss') : '' 
       ].map(field => escapeCSVField(field)).join(',');
       csvContent += row + "\n";
@@ -566,7 +557,6 @@ export default function SchedulerPage() {
     setSelectedScheduledTaskIds([]);
   };
 
-  // Effect for handling Escape key to clear selections or close dialogs
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -598,12 +588,12 @@ export default function SchedulerPage() {
         <div className="flex flex-grow gap-4 overflow-hidden">
           <TaskSidebar 
             tasks={tasks} 
-            onDragTaskStart={(event, taskId) => handleDragTaskStart(event, taskId, 'new-task')} 
+            onDragTaskStart={(event, taskId, type) => handleDragTaskStart(event, taskId, type)} 
           />
-          <div className="flex flex-1 flex-col gap-0 overflow-hidden"> {/* Ensure this flex-col does not have gap if HeaderControls and views should be flush */}
+          <div className="flex flex-1 flex-col gap-0 overflow-hidden"> 
             <HeaderControls
               currentView={currentView}
-              onViewChange={(view) => { setCurrentView(view); setSelectedScheduledTaskIds([]); }} // Clear selection on view change
+              onViewChange={(view) => { setCurrentView(view); setSelectedScheduledTaskIds([]); }} 
               currentDate={activeDate} 
               onPrev={handlePrev}
               onNext={handleNext}
@@ -611,16 +601,15 @@ export default function SchedulerPage() {
               onSetDate={handleSetDate}
               onManageTasks={() => setIsTaskDialogOpen(true)}
               onManageEmployees={() => setIsEmployeeDialogOpen(true)}
-              employees={activeEmployees} // Pass only active employees for filtering
+              employees={activeEmployees} 
               selectedEmployeeId={selectedEmployeeId}
               onEmployeeFilterChange={setSelectedEmployeeId}
               onExportCSV={handleExportCSV} 
             />
-            {/* This div will manage showing/hiding views to preserve state */}
             <div className="flex-1 overflow-hidden h-full">
               <div className={cn('h-full w-full', currentView === 'weekly' ? 'flex' : 'hidden')}>
                 <WeeklyView
-                  employees={employees} // Pass all employees, filtering happens inside
+                  employees={employees} 
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
                   currentDate={currentWeekDate} 
@@ -634,17 +623,17 @@ export default function SchedulerPage() {
               </div>
               <div className={cn('h-full w-full', currentView === 'monthly' ? 'flex' : 'hidden')}>
                 <MonthlyView
-                  employees={employees} // Pass all for lookup, filtering happens inside or by selectedEmployeeId
+                  employees={employees} 
                   tasks={tasks}
                   scheduledTasks={scheduledTasks}
                   currentDate={currentMonthDate} 
                   onDateClick={handleMonthlyDateClick}
                   selectedEmployeeId={selectedEmployeeId}
-                  onDropTaskToCell={handleOpenAssignEmployeeDialog} // For NEW tasks from sidebar
-                  onScheduledTaskItemClick={handleScheduledTaskClick} // For clicking existing tasks
+                  onDropTaskToCell={handleOpenAssignEmployeeDialog} 
+                  onScheduledTaskItemClick={handleScheduledTaskClick} 
                   selectedScheduledTaskIds={selectedScheduledTaskIds}
-                  onTaskDragStart={handleDragTaskStart} // For dragging existing tasks
-                  onMoveExistingTasksInMonthlyView={handleMoveScheduledTasksInMonthlyView} // For dropping existing tasks
+                  onTaskDragStart={handleDragTaskStart} 
+                  onMoveExistingTasksInMonthlyView={handleMoveScheduledTasksInMonthlyView} 
                 />
               </div>
             </div>
@@ -673,14 +662,9 @@ export default function SchedulerPage() {
           onOpenChange={(open) => {
             setIsTaskDetailsDialogOpen(open);
             if (!open) {
-                // Only clear selectedScheduledTask if the dialog is closed
-                // without saving, or if it's not part of a multi-selection action.
-                // If selectedScheduledTaskIds has more than one item, or if a save just occurred,
-                // selectedScheduledTask might have already been cleared by handleSave.
                 if (selectedScheduledTaskIds.length <= 1) {
                     setSelectedScheduledTask(null);
                 }
-                // Do not clear selectedScheduledTaskIds here, as user might want to keep selection
             } 
           }}
           scheduledTask={selectedScheduledTask}
@@ -688,11 +672,12 @@ export default function SchedulerPage() {
           tasks={tasks}
           onSave={handleSaveScheduledTaskDetails}
           onDelete={handleDeleteScheduledTask}
+          // allUniqueTags prop removed
         />
         <AssignEmployeeDialog
           isOpen={isAssignEmployeeDialogOpen}
           onOpenChange={setIsAssignEmployeeDialogOpen}
-          employees={activeEmployees} // Pass only active employees for assignment
+          employees={activeEmployees} 
           taskName={pendingTaskAssignmentData?.taskName}
           date={pendingTaskAssignmentData?.date}
           onSubmit={handleConfirmEmployeeAssignment}
@@ -700,3 +685,5 @@ export default function SchedulerPage() {
       </div>
   );
 }
+
+    
