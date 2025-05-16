@@ -11,7 +11,7 @@ import { getTaskIcon } from '@/components/icons/task-icon-map';
 import { format, isSameMonth, isSameDay } from 'date-fns';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast'; // Added for potential error feedback
+import { useToast } from '@/hooks/use-toast';
 
 interface MonthlyViewProps {
   employees: Employee[];
@@ -45,7 +45,7 @@ export function MonthlyView({
   const getEmployeeById = (employeeId: string): Employee | undefined => employees.find(e => e.id === employeeId);
   const [draggedOverDate, setDraggedOverDate] = React.useState<string | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
-  const { toast } = useToast(); // Initialize toast
+  const { toast } = useToast();
 
   useEffect(() => {
     setClientToday(new Date());
@@ -84,16 +84,35 @@ export function MonthlyView({
     event.preventDefault();
     setDraggedOverDate(null);
     
-    const draggedDataJSON = event.dataTransfer.getData('application/json');
-    if (!draggedDataJSON) {
-      console.warn("Drag operation in MonthlyView: No 'application/json' data found.");
-      toast({
-        title: "Drag Error",
-        description: "Could not retrieve task data from drag operation.",
-        variant: "destructive",
-      });
-      return;
+    let draggedDataJSON: string | null = null;
+    try {
+      draggedDataJSON = event.dataTransfer.getData('application/json');
+    } catch (e) {
+      // This can happen if only text/plain was set
     }
+
+    if (!draggedDataJSON) {
+        const plainData = event.dataTransfer.getData('text/plain'); 
+        // Check if plainData could be a task ID from an older drag source or simple text drop
+        if (tasks.some(t => t.id === plainData) || scheduledTasks.some(st => st.id === plainData)) {
+            // We can't be sure if it's a new task or existing one without type info,
+            // so we could potentially try to infer or show a generic error.
+            // For now, let's assume JSON is required for proper typed drops.
+             toast({
+                title: "Drag Error",
+                description: "Task data is in an unrecognized format. Please drag tasks from the sidebar or within the calendar.",
+                variant: "destructive",
+            });
+        } else {
+            toast({
+                title: "Drag Error",
+                description: "Could not retrieve task data from drag operation.",
+                variant: "destructive",
+            });
+        }
+        return;
+    }
+
 
     let data: { type: string; id: string };
     try {
@@ -146,7 +165,7 @@ export function MonthlyView({
         <PopoverTrigger asChild>
           <div
             className={cn(
-              'h-full min-h-[7rem] border border-border p-1.5 flex flex-col',
+              'h-full min-h-[7rem] p-1.5 flex flex-col', // Removed 'border border-border'
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'relative',
               isCurrentMonth ? 'bg-background' : 'bg-muted/40',
@@ -175,7 +194,7 @@ export function MonthlyView({
           >
             <span className={cn(
                 'text-xs font-medium self-start mb-1',
-                isDayToday(date) ? 'text-primary font-bold' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
+                isDayToday(date) && clientToday ? 'text-primary font-bold' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
             )}>
               {format(date, 'd')}
             </span>
@@ -193,6 +212,7 @@ export function MonthlyView({
                         scheduledTaskId={st.id}
                         employeeName={employeeDetail ? `${employeeDetail.firstName} ${employeeDetail.lastName}` : undefined}
                         onClick={(id, event) => { 
+                           event.stopPropagation(); // Prevent day cell click
                            onScheduledTaskItemClick(id, event);
                         }}
                         isCompact={true}
@@ -247,8 +267,8 @@ export function MonthlyView({
             Day: (props) => <DayCell date={props.date} dayProps={props} />, 
           }}
           classNames={{
-            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b text-center", 
-            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative h-full", // Added h-full
+            head_cell: "w-0 flex-1 text-muted-foreground rounded-md font-normal text-[0.8rem] border-b border-r text-center", 
+            cell: "w-0 flex-1 p-0 m-0 border-r last:border-r-0 relative h-full",
             row: "flex w-full mt-0 border-b last:border-b-0", 
             table: "w-full border-collapse space-y-0 h-full flex flex-col", 
             months: "p-0 flex-grow flex flex-col", 
@@ -262,5 +282,3 @@ export function MonthlyView({
     </Card>
   );
 }
-
-    
