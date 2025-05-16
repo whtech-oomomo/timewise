@@ -1,0 +1,81 @@
+# GraphQL Schema Definitions for TimeWise Scheduler
+
+"""
+Represents an employee in the system.
+"""
+type Employee {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  warehouseCode: String!
+  createdAt: String! # ISO date string
+  isActive: Boolean!
+}
+
+"""
+Represents a predefined task type that can be scheduled.
+"""
+type Task {
+  id: ID!
+  name: String!
+  iconName: String! # Key for mapping to LucideIcon
+  colorClasses: String! # Tailwind classes for styling
+  defaultHours: Float # Default duration for this task type
+}
+
+"""
+Represents an instance of a task scheduled for an employee on a specific date.
+"""
+type ScheduledTask {
+  id: ID!
+  employeeId: ID! # Refers to Employee.id
+  taskId: ID!     # Refers to Task.id
+  date: String!   # YYYY-MM-DD format
+  status: String  # e.g., "Scheduled", "In Progress", "Completed"
+  hours: Float    # Duration of the task in hours
+  tags: [String!] # List of tag names. Empty list if no tags.
+}
+
+# Basic Query type to make the schema valid and to suggest how data might be fetched.
+# In a real implementation, these would have corresponding resolvers.
+type Query {
+  """
+  Fetch all employees.
+  """
+  allEmployees: [Employee!]!
+
+  """
+  Fetch an employee by their ID.
+  """
+  employee(id: ID!): Employee
+
+  """
+  Fetch all predefined tasks.
+  """
+  allTasks: [Task!]!
+
+  """
+  Fetch a predefined task by its ID.
+  """
+  task(id: ID!): Task
+
+  """
+  Fetch all scheduled tasks, optionally filtered.
+  """
+  allScheduledTasks(employeeId: ID, date: String, warehouseCode: String): [ScheduledTask!]!
+
+  """
+  Fetch a scheduled task by its ID.
+  """
+  scheduledTask(id: ID!): ScheduledTask
+}
+
+# Basic Mutation type to suggest how data might be modified.
+# In a real implementation, these would have corresponding resolvers.
+# type Mutation {
+#   # Example: Add a new employee
+#   addEmployee(firstName: String!, lastName: String!, employeeId: String!, warehouseCode: String!, isActive: Boolean): Employee
+#
+#   # Example: Schedule a new task
+#   scheduleTask(employeeId: ID!, taskId: ID!, date: String!, hours: Float, tags: [String!]): ScheduledTask
+# }
