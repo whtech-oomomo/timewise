@@ -2,7 +2,7 @@
 'use client';
 
 import type { Employee } from '@/lib/types';
-import { useState, useEffect } from 'react'; // Added useEffect
+import { useState, useEffect } from 'react'; 
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,21 +20,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns'; // Added isValid
 
 interface AssignEmployeeDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  employees: Employee[]; // Should be active employees
+  employees: Employee[]; 
   taskName?: string;
-  date?: string; // YYYY-MM-DD format
+  date?: string; 
   onSubmit: (selectedEmployeeId: string) => void;
 }
 
 export function AssignEmployeeDialog({
   isOpen,
   onOpenChange,
-  employees, // Active employees
+  employees, 
   taskName,
   date,
   onSubmit,
@@ -42,8 +42,6 @@ export function AssignEmployeeDialog({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(employees[0]?.id);
 
   useEffect(() => {
-    // Update selected employee if the list changes (e.g. employees become active/inactive)
-    // or if the currently selected one is no longer in the list.
     if (isOpen) {
         if (employees.length > 0) {
             const currentSelectionStillValid = employees.some(emp => emp.id === selectedEmployeeId);
@@ -64,10 +62,11 @@ export function AssignEmployeeDialog({
   };
 
   const handleDialogClose = () => {
-    // No need to reset selectedEmployeeId here as useEffect will handle it if needed upon reopen.
     onOpenChange(false);
   };
   
+  const formattedDate = date && isValid(new Date(date)) ? format(new Date(date), 'MMMM d, yyyy') : 'Invalid Date';
+
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-md">
@@ -75,7 +74,7 @@ export function AssignEmployeeDialog({
           <DialogTitle>Assign Task to Employee</DialogTitle>
           {taskName && date && (
             <DialogDescription>
-              Assign task "{taskName}" for {format(new Date(date), 'MMMM d, yyyy')} to an employee.
+              Assign task "{taskName}" for {formattedDate} to an employee.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -88,17 +87,17 @@ export function AssignEmployeeDialog({
               disabled={employees.length === 0}
             >
               <SelectTrigger id="employee">
-                <SelectValue placeholder={employees.length > 0 ? "Select an active employee" : "No active employees"} />
+                <SelectValue placeholder={employees.length > 0 ? "Select an active employee" : "No employees match criteria"} />
               </SelectTrigger>
               <SelectContent>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
-                    {employee.firstName} {employee.lastName}
+                    {employee.firstName} {employee.lastName} (WC: {employee.warehouseCode})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {employees.length === 0 && <p className="text-sm text-muted-foreground">No active employees available to assign.</p>}
+            {employees.length === 0 && <p className="text-sm text-muted-foreground">No active employees available to assign (check warehouse filter).</p>}
           </div>
         </div>
         <DialogFooter>

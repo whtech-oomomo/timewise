@@ -21,6 +21,7 @@ const initialEmployees: Employee[] = [
   { id: 'emp001', firstName: 'Alice', lastName: 'Wonderland', warehouseCode: 'WH-A1', createdAt: new Date().toISOString(), isActive: true },
   { id: 'emp002', firstName: 'Bob', lastName: 'The Builder', warehouseCode: 'WH-B2', createdAt: new Date().toISOString(), isActive: true },
   { id: 'emp003', firstName: 'Carol', lastName: 'Danvers', warehouseCode: 'WH-C3', createdAt: new Date().toISOString(), isActive: false },
+  { id: 'emp004', firstName: 'David', lastName: 'Copperfield', warehouseCode: 'WH-A1', createdAt: new Date().toISOString(), isActive: true },
 ];
 
 const initialTasks: Task[] = [
@@ -41,7 +42,10 @@ export default function SchedulerPage() {
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
+  
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [selectedWarehouseCode, setSelectedWarehouseCode] = useState<string | null>(null);
+
 
   const [selectedScheduledTask, setSelectedScheduledTask] = useState<ScheduledTask | null>(null);
   const [isTaskDetailsDialogOpen, setIsTaskDetailsDialogOpen] = useState(false);
@@ -54,16 +58,46 @@ export default function SchedulerPage() {
   const { toast } = useToast();
   const mainContainerRef = useRef<HTMLDivElement>(null);
 
-  const activeEmployees = useMemo(() => employees.filter(emp => emp.isActive), [employees]);
+  const allUniqueWarehouseCodes = useMemo(() => {
+    const codes = new Set<string>();
+    employees.forEach(emp => codes.add(emp.warehouseCode));
+    return Array.from(codes).sort();
+  }, [employees]);
 
-  // Removed allUniqueTags calculation as the dialog version it was for is being reverted.
-  // const allUniqueTags = useMemo(() => {
-  //   const tagSet = new Set<string>();
-  //   scheduledTasks.forEach(st => {
-  //       (st.tags || []).forEach(tag => tagSet.add(tag));
-  //   });
-  //   return Array.from(tagSet).sort();
-  // }, [scheduledTasks]);
+  const activeEmployees = useMemo(() => employees.filter(emp => emp.isActive), [employees]);
+  
+  const activeEmployeesForDropdown = useMemo(() => {
+    if (selectedWarehouseCode) {
+      return activeEmployees.filter(emp => emp.warehouseCode === selectedWarehouseCode);
+    }
+    return activeEmployees;
+  }, [activeEmployees, selectedWarehouseCode]);
+
+  const activeEmployeesForViews = useMemo(() => {
+    let emps = activeEmployees;
+    if (selectedWarehouseCode) {
+      emps = emps.filter(emp => emp.warehouseCode === selectedWarehouseCode);
+    }
+    return emps;
+  }, [activeEmployees, selectedWarehouseCode]);
+
+  const filteredScheduledTasks = useMemo(() => {
+    let filtered = scheduledTasks;
+
+    if (selectedWarehouseCode) {
+      const employeeIdsInWarehouse = employees
+        .filter(emp => emp.warehouseCode === selectedWarehouseCode)
+        .map(emp => emp.id);
+      filtered = filtered.filter(st => employeeIdsInWarehouse.includes(st.employeeId));
+    }
+
+    if (selectedEmployeeId) {
+      filtered = filtered.filter(st => st.employeeId === selectedEmployeeId);
+    }
+    
+    return filtered;
+  }, [scheduledTasks, selectedEmployeeId, selectedWarehouseCode, employees]);
+
 
   const handleDragTaskStart = (event: React.DragEvent<HTMLDivElement>, itemId: string, type: 'new-task' | 'existing-scheduled-task' = 'new-task') => {
     const dragData = JSON.stringify({ type, id: itemId });
@@ -83,7 +117,7 @@ export default function SchedulerPage() {
         const plainData = event.dataTransfer.getData('text/plain'); 
         if (plainData && tasks.some(t => t.id === plainData)) {
             draggedDataJSON = JSON.stringify({ type: 'new-task', id: plainData });
-        } else if (plainData && scheduledTasks.some(st => st.id === plainData)) { // Check for existing task ID for robustness
+        } else if (plainData && scheduledTasks.some(st => st.id === plainData)) { 
             draggedDataJSON = JSON.stringify({ type: 'existing-scheduled-task', id: plainData });
         } else {
             console.error("No valid task ID found in drag data (plain text).");
@@ -182,7 +216,6 @@ export default function SchedulerPage() {
   };
 
 
-  // Task CRUD operations
   const handleAddTask = (taskData: TaskFormData) => {
     const newTask: Task = { 
       ...taskData, 
@@ -201,7 +234,6 @@ export default function SchedulerPage() {
     setScheduledTasks((prev) => prev.filter(st => st.taskId !== taskId));
   };
 
-  // Employee CRUD operations
   const handleAddEmployee = (employeeData: EmployeeFormData) => {
     const newEmployee: Employee = { 
       ...employeeData, 
@@ -232,7 +264,6 @@ export default function SchedulerPage() {
         const task = scheduledTasks.find(st => st.id === id); 
         return task && task.employeeId !== employeeIdToDelete;
     }));
-
 
     toast({
       title: "Employee Deleted",
@@ -305,8 +336,6 @@ export default function SchedulerPage() {
     });
   };
 
-
-  // Navigation
   const handlePrev = () => {
     if (currentView === 'weekly') {
       setCurrentWeekDate((prevDate) => subWeeks(prevDate, 1));
@@ -406,6 +435,19 @@ export default function SchedulerPage() {
 
   const handleOpenAssignEmployeeDialog = (taskId: string, date: Date) => {
     const task = tasks.find(t => t.id === taskId); 
+    const employeesForAssignment = selectedWarehouseCode 
+        ? activeEmployees.filter(emp => emp.warehouseCode === selectedWarehouseCode)
+        : activeEmployees;
+
+    if (employeesForAssignment.length === 0) {
+        toast({
+            title: "No Employees Available",
+            description: `No active employees found${selectedWarehouseCode ? ` in warehouse ${selectedWarehouseCode}` : ''} to assign this task.`,
+            variant: "default"
+        });
+        return;
+    }
+
     setPendingTaskAssignmentData({
       taskId,
       date: format(date, 'yyyy-MM-dd'),
@@ -448,10 +490,10 @@ export default function SchedulerPage() {
   };
 
   const generateScheduleCSV = () => {
-    const headers = ["Date", "Employee ID", "Employee First Name", "Employee Last Name", "Task Name", "Task Status", "Hours", "Tags"];
+    const headers = ["Date", "Employee ID", "Employee First Name", "Employee Last Name", "Warehouse Code", "Task Name", "Task Status", "Hours", "Tags"];
     let csvContent = headers.map(header => escapeCSVField(header)).join(",") + "\n";
 
-    const sortedScheduledTasks = [...scheduledTasks].sort((a, b) => {
+    const sortedScheduledTasks = [...filteredScheduledTasks].sort((a, b) => { // Use filteredScheduledTasks
       const dateComparison = a.date.localeCompare(b.date);
       if (dateComparison !== 0) return dateComparison;
       return a.employeeId.localeCompare(b.employeeId);
@@ -465,10 +507,11 @@ export default function SchedulerPage() {
         employee?.id,
         employee?.firstName,
         employee?.lastName,
+        employee?.warehouseCode,
         task?.name,
         st.status || 'Scheduled', 
         st.hours,
-        (st.tags || []).join(' | ') // Join tags with a pipe separator
+        (st.tags || []).join(' | ') 
       ].map(field => escapeCSVField(field)).join(',');
       csvContent += row + "\n";
     });
@@ -476,10 +519,10 @@ export default function SchedulerPage() {
   };
 
   const handleExportCSV = () => {
-    if (scheduledTasks.length === 0) {
+    if (filteredScheduledTasks.length === 0) { // Use filteredScheduledTasks
         toast({
             title: "No Data to Export",
-            description: "There are no scheduled tasks to export.",
+            description: "There are no scheduled tasks matching the current filters to export.",
             variant: "default",
         });
         return;
@@ -553,6 +596,11 @@ export default function SchedulerPage() {
     }
   };
 
+  const handleWarehouseFilterChange = (warehouseCode: string | null) => {
+    setSelectedWarehouseCode(warehouseCode);
+    setSelectedEmployeeId(null); // Reset employee filter when warehouse changes
+  };
+
   const handleClearSelections = () => {
     setSelectedScheduledTaskIds([]);
   };
@@ -601,17 +649,20 @@ export default function SchedulerPage() {
               onSetDate={handleSetDate}
               onManageTasks={() => setIsTaskDialogOpen(true)}
               onManageEmployees={() => setIsEmployeeDialogOpen(true)}
-              employees={activeEmployees} 
+              employees={activeEmployeesForDropdown} // Use employees filtered for dropdown
               selectedEmployeeId={selectedEmployeeId}
               onEmployeeFilterChange={setSelectedEmployeeId}
+              allUniqueWarehouseCodes={allUniqueWarehouseCodes}
+              selectedWarehouseCode={selectedWarehouseCode}
+              onWarehouseFilterChange={handleWarehouseFilterChange}
               onExportCSV={handleExportCSV} 
             />
             <div className="flex-1 overflow-hidden h-full">
               <div className={cn('h-full w-full', currentView === 'weekly' ? 'flex' : 'hidden')}>
                 <WeeklyView
-                  employees={employees} 
+                  employees={activeEmployeesForViews} // Use employees filtered for view
                   tasks={tasks}
-                  scheduledTasks={scheduledTasks}
+                  scheduledTasks={filteredScheduledTasks} // Use filtered tasks
                   currentDate={currentWeekDate} 
                   onDropTask={handleDropTask}
                   selectedEmployeeId={selectedEmployeeId}
@@ -623,12 +674,12 @@ export default function SchedulerPage() {
               </div>
               <div className={cn('h-full w-full', currentView === 'monthly' ? 'flex' : 'hidden')}>
                 <MonthlyView
-                  employees={employees} 
+                  employees={activeEmployeesForViews} // Use employees filtered for view
                   tasks={tasks}
-                  scheduledTasks={scheduledTasks}
+                  scheduledTasks={filteredScheduledTasks} // Use filtered tasks
                   currentDate={currentMonthDate} 
                   onDateClick={handleMonthlyDateClick}
-                  selectedEmployeeId={selectedEmployeeId}
+                  selectedEmployeeId={selectedEmployeeId} // Still needed for cell-level task filtering display
                   onDropTaskToCell={handleOpenAssignEmployeeDialog} 
                   onScheduledTaskItemClick={handleScheduledTaskClick} 
                   selectedScheduledTaskIds={selectedScheduledTaskIds}
@@ -650,7 +701,7 @@ export default function SchedulerPage() {
         <ManageEmployeesDialog
           isOpen={isEmployeeDialogOpen}
           onOpenChange={setIsEmployeeDialogOpen}
-          employees={employees}
+          employees={employees} // Full list for management
           onAddEmployee={handleAddEmployee}
           onUpdateEmployee={handleUpdateEmployee}
           onDeleteEmployee={handleDeleteEmployee} 
@@ -662,22 +713,21 @@ export default function SchedulerPage() {
           onOpenChange={(open) => {
             setIsTaskDetailsDialogOpen(open);
             if (!open) {
-                if (selectedScheduledTaskIds.length <= 1) {
+                if (selectedScheduledTaskIds.length <= 1) { // Keep dialog if multiple selected, but dialog focuses on one.
                     setSelectedScheduledTask(null);
                 }
             } 
           }}
           scheduledTask={selectedScheduledTask}
-          employees={employees}
+          employees={employees} // Full list for details
           tasks={tasks}
           onSave={handleSaveScheduledTaskDetails}
           onDelete={handleDeleteScheduledTask}
-          // allUniqueTags prop removed
         />
         <AssignEmployeeDialog
           isOpen={isAssignEmployeeDialogOpen}
           onOpenChange={setIsAssignEmployeeDialogOpen}
-          employees={activeEmployees} 
+          employees={activeEmployeesForDropdown} // Use employees filtered for assignment matching current WH filter
           taskName={pendingTaskAssignmentData?.taskName}
           date={pendingTaskAssignmentData?.date}
           onSubmit={handleConfirmEmployeeAssignment}
@@ -685,5 +735,3 @@ export default function SchedulerPage() {
       </div>
   );
 }
-
-    

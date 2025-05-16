@@ -13,7 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, CalendarIcon, ListChecks, UserSearch, FilterX, UsersRound, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarIcon, ListChecks, UserSearch, FilterX, UsersRound, Download, Warehouse } from 'lucide-react';
 
 interface HeaderControlsProps {
   currentView: 'weekly' | 'monthly';
@@ -28,7 +28,10 @@ interface HeaderControlsProps {
   employees: Employee[]; 
   selectedEmployeeId: string | null;
   onEmployeeFilterChange: (employeeId: string | null) => void;
-  onExportCSV: () => void; // New prop for CSV export
+  allUniqueWarehouseCodes: string[];
+  selectedWarehouseCode: string | null;
+  onWarehouseFilterChange: (warehouseCode: string | null) => void;
+  onExportCSV: () => void;
 }
 
 export function HeaderControls({
@@ -41,10 +44,13 @@ export function HeaderControls({
   onSetDate,
   onManageTasks,
   onManageEmployees,
-  employees,
+  employees, // These are active employees, potentially filtered by warehouse already
   selectedEmployeeId,
   onEmployeeFilterChange,
-  onExportCSV, // New prop
+  allUniqueWarehouseCodes,
+  selectedWarehouseCode,
+  onWarehouseFilterChange,
+  onExportCSV,
 }: HeaderControlsProps) {
   
   const displayDateRange = () => {
@@ -86,13 +92,37 @@ export function HeaderControls({
 
       <div className="flex items-center gap-2">
         <Select
+          value={selectedWarehouseCode || 'all'}
+          onValueChange={(value) => onWarehouseFilterChange(value === 'all' ? null : value)}
+          disabled={allUniqueWarehouseCodes.length === 0}
+        >
+          <SelectTrigger className="w-[180px]">
+            <Warehouse className="mr-2 h-4 w-4"/>
+            <SelectValue placeholder="Filter by Warehouse" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Warehouses</SelectItem>
+            {allUniqueWarehouseCodes.map((code) => (
+              <SelectItem key={code} value={code}>
+                {code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {selectedWarehouseCode && (
+            <Button variant="ghost" size="icon" onClick={() => onWarehouseFilterChange(null)} title="Clear warehouse filter">
+                <FilterX className="h-4 w-4"/>
+            </Button>
+        )}
+
+        <Select
           value={selectedEmployeeId || 'all'}
           onValueChange={(value) => onEmployeeFilterChange(value === 'all' ? null : value)}
           disabled={employees.length === 0 && !selectedEmployeeId}
         >
           <SelectTrigger className="w-[180px]">
             <UserSearch className="mr-2 h-4 w-4"/>
-            <SelectValue placeholder={employees.length > 0 ? "Filter by Employee" : "No active employees"} />
+            <SelectValue placeholder={employees.length > 0 ? "Filter by Employee" : (selectedWarehouseCode ? "No employees in WC" : "No active employees")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Employees</SelectItem>
@@ -129,7 +159,7 @@ export function HeaderControls({
         <Button variant="outline" onClick={onManageEmployees}>
           <UsersRound className="mr-2 h-4 w-4" /> Manage Employees
         </Button>
-        <Button variant="outline" onClick={onExportCSV}> {/* New Export Button */}
+        <Button variant="outline" onClick={onExportCSV}>
           <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
       </div>
