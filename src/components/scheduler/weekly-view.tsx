@@ -53,7 +53,8 @@ export function WeeklyView({
   };
 
   const handleCellClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
+    // Check if the click target is the cell itself and not a task item within it
+    if ((e.target as HTMLElement).getAttribute('data-is-task-item') !== 'true' && e.target === e.currentTarget) {
       onClearSelections();
     }
   };
@@ -78,7 +79,7 @@ export function WeeklyView({
               <div
                 key={day.toISOString()}
                 className={cn(
-                  "sticky top-0 z-10 p-3 text-center font-semibold bg-muted border-b text-sm",
+                  "sticky top-0 z-10 p-3 text-center font-semibold bg-muted border-b border-r text-sm",
                   isDayToday(day) ? "text-primary font-bold" : ""
                 )}
               >
@@ -106,7 +107,7 @@ export function WeeklyView({
                     <div
                       key={`${employee.id}-${day.toISOString()}`}
                       className={cn(
-                        "p-2 border-b min-h-[80px] transition-colors duration-150",
+                        "p-2 border-b border-r min-h-[80px] transition-colors duration-150",
                         isCellDraggedOver ? "bg-accent" : "bg-background",
                         "hover:bg-secondary/50",
                         isDayToday(day) ? "bg-primary/5" : ""
@@ -154,3 +155,4 @@ export function WeeklyView({
     </Card>
   );
 }
+
